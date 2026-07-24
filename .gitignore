@@ -1,0 +1,32 @@
+# ── OS / editor ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# ── Secrets / environment ────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ───────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Node / JS ────────────────────────────────────────────
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+coverage/
+
+# ── Claude Code / Spec Kit local state ───────────────────
+.claude/settings.local.json
+.specify/feature.json

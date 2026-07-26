@@ -6,9 +6,10 @@ returned as a **single schema-valid JSON contract** — success, blocked, or deg
 
 > Take-home assessment for the **AI Agent Engineer** position at Zapp Global.
 
-**Status:** spec `001-support-agent` is fully implemented (US1–US5) — the orchestrated agent core
-with baseline multilingual + guardrails inline. Specs `002-multilingual`, `003-guardrails`, and
-`004-evaluation` deepen those cross-cutting concerns next (see [Roadmap](#roadmap)).
+**Status:** spec `001-support-agent` (US1–US5) and spec `002-multilingual` (US1–US4) are fully
+implemented — the orchestrated agent core plus verified in-language replies, a coherent language
+policy, and graceful degradation. Specs `003-guardrails` and `004-evaluation` deepen the remaining
+cross-cutting concerns next (see [Roadmap](#roadmap)).
 
 ---
 
@@ -21,7 +22,7 @@ with baseline multilingual + guardrails inline. Specs `002-multilingual`, `003-g
 | **Actions with HITL** (US3) | State-changing actions (cancel/reschedule) are **restated and confirmed before executing**, exactly once. |
 | **Safety envelope** (US4) | Off-topic / unsafe / prompt-injection inputs are declined transparently, in the user's language, with the decision recorded in the contract. |
 | **Graceful degradation** (US5) | Any timeout / malformed output / tool error still yields a valid, safe, `needs_review=true` contract — never a crash. |
-| **Multilingual** | ES / EN / PT, detected and locked per session; replies stay in the active language. |
+| **Multilingual** | ES / EN / PT; replies are **verified** in-language (corrected once, else safe-flagged); language **persists** across turns and switches only on sustained intent; unsupported languages degrade to the fallback + review. |
 | **Observability** | Per-turn trace: one span per node + token/latency/cost accounting. |
 
 ---
@@ -40,7 +41,7 @@ uv run zapp-assist turn --session demo --text "¿hasta cuándo puedo reprogramar
 uv run zapp-assist chat        # interactive multi-turn (keeps active_lang + memory)
 
 # Verify everything (no key needed)
-uv run pytest                 # 54 tests: unit + contract + integration
+uv run pytest                 # 82 tests: unit + contract + integration (001 + 002)
 uv run ruff check . && uv run mypy src
 ```
 
@@ -157,12 +158,17 @@ correspondence:
 ## Roadmap
 
 001 ships baseline multilingual + guardrails *inline* (satisfying the turn-lifecycle requirements);
-the remaining specs deepen each concern as its own vertical slice:
+each remaining concern is deepened as its own vertical slice:
 
-- **`002-multilingual`** — richer detection, mid-session switch policy, coherence across turns.
+- **`002-multilingual`** ✅ *done* — **verified** in-language replies (deterministic reply-language
+  check + one bounded correction, else safe-flag), a sustained-switch **language policy** (persist
+  across weak turns, switch only on sustained intent, never thrash), **graceful degradation** on
+  unsupported languages (broad-guard detection → fallback + review), and language-**fidelity signals**
+  in the trace for evaluation.
 - **`003-guardrails`** — the full input/output guardrail taxonomy and rule set.
 - **`004-evaluation`** — one-command, CI-ready eval suite: task success, language fidelity,
   guardrail precision/recall, LLM-as-judge quality, latency & cost, with a pre-generated report.
+- **`005-web-ui`** — a thin Streamlit client over `Agent.run_turn` (chat + contract/trace panel).
 
 ---
 

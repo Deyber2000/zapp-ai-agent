@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
-from ..contracts import GuardrailDecision
+from ..contracts import GuardrailDecision, TurnResult
 
 
 class GuardrailContext(BaseModel):
@@ -42,6 +42,29 @@ def governing_action(decisions: list[GuardrailDecision]) -> str:
 
     return max(
         (d.action for d in decisions), key=lambda a: _ACTION_ORDER[a], default="allow"
+    )
+
+
+class GuardrailSummary(BaseModel):
+    """A turn's guardrail decisions flattened for the 004 eval (by category and by layer)."""
+
+    total: int = 0
+    by_category: dict[str, int] = Field(default_factory=dict)
+    by_layer: dict[str, int] = Field(default_factory=dict)
+    decisions: list[GuardrailDecision] = Field(default_factory=list)
+
+
+def guardrail_summary(result: TurnResult) -> GuardrailSummary:
+    """Flatten a turn's input+output guardrail decisions for precision/recall aggregation (004)."""
+
+    decisions = [*result.guardrails.input, *result.guardrails.output]
+    by_category: dict[str, int] = {}
+    by_layer: dict[str, int] = {}
+    for decision in decisions:
+        by_category[decision.category] = by_category.get(decision.category, 0) + 1
+        by_layer[decision.layer] = by_layer.get(decision.layer, 0) + 1
+    return GuardrailSummary(
+        total=len(decisions), by_category=by_category, by_layer=by_layer, decisions=decisions
     )
 
 

@@ -1,8 +1,8 @@
-"""002 multilingual — end-to-end integration (US1 first; US2/US3 added in later increments).
+"""002 multilingual — end-to-end integration.
 
-US1: a reply that is actually in the user's language. A wrong-language reply is corrected before the
-user sees it; a persistent mismatch is replaced by a safe in-language message + needs_review — the
-mismatched text is never shipped (SC-002).
+US1: a reply that is actually in the user's language (corrected or safe-flagged, never shipped bad).
+US2: coherence across turns — language persists across short turns and switches only on sustained
+confident intent, never on a one-off phrase.
 """
 
 from __future__ import annotations
@@ -99,3 +99,60 @@ def test_correct_in_language_reply_passes_verification(
     assert result.reply == reply
     assert _lang_of(result.reply) == lang
     assert result.needs_review is False
+
+
+# ---- US2: coherence & sustained-switch policy -------------------------------------------------
+
+# Real sentences whose deterministic detection + confidence are verified to clear the thresholds.
+PT1 = "Olá, preciso reagendar a minha entrega para amanhã de manhã, por favor."
+PT2 = "Obrigado pela ajuda com o meu pedido de hoje."
+PT3 = "Preciso de ajuda com a minha entrega de amanhã de manhã."
+EN1 = "I would like to continue this conversation in English now please."
+EN2 = "Can you help me reschedule my delivery for tomorrow afternoon?"
+EN3 = "Thanks a lot for your help today, I really appreciate it."
+
+
+def _last_user(call: MockCall) -> str:
+    for msg in reversed(call.messages):
+        if msg.get("role") == "user":
+            return msg.get("content", "")
+    return ""
+
+
+def _coherence_llm() -> MockLLMClient:
+    """LangSignal mirrors the real deterministic detection; every turn is a clarify (reply is a
+    per-language template, so reply verification is transparent and no grounding is needed)."""
+
+    def responder(call: MockCall):  # type: ignore[no-untyped-def]
+        if call.schema is None:
+            return None
+        name = call.schema.__name__
+        if name == "LangSignal":
+            lang, conf = _DET.language_of(_last_user(call))
+            return call.schema(lang=lang, confidence=conf)
+        if name == "IntentSignal":
+            return call.schema(intent="clarify", confidence=0.9)
+        return None
+
+    return MockLLMClient(responder=responder)
+
+
+def test_language_persists_across_short_and_matching_turns() -> None:
+    agent = _agent(_coherence_llm())
+    assert agent.run_turn("coh", PT1).active_lang == "pt"  # locks pt
+    assert agent.run_turn("coh", "ok").active_lang == "pt"  # short → keeps pt (SC-003)
+    assert agent.run_turn("coh", PT2).active_lang == "pt"  # pt again → keeps pt
+
+
+def test_sustained_switch_updates_active_language() -> None:
+    agent = _agent(_coherence_llm())
+    assert agent.run_turn("sw", PT1).active_lang == "pt"  # locked pt
+    assert agent.run_turn("sw", EN1).active_lang == "pt"  # 1st EN → still pt (accumulating)
+    assert agent.run_turn("sw", EN2).active_lang == "en"  # 2nd EN → sustained switch (SC-004)
+
+
+def test_one_off_foreign_phrase_does_not_switch() -> None:
+    agent = _agent(_coherence_llm())
+    assert agent.run_turn("one", PT1).active_lang == "pt"  # locked pt
+    assert agent.run_turn("one", EN3).active_lang == "pt"  # single EN phrase → still pt
+    assert agent.run_turn("one", PT3).active_lang == "pt"  # back to pt → never switched (SC-004)

@@ -80,6 +80,54 @@ class LinguaDetector:
         return _LANGUAGE_TO_ISO.get(top.language, self._fallback), float(top.value)
 
 
+def apply_switch_policy(
+    *,
+    active_lang: str | None,
+    detected: str,
+    confidence: float,
+    substantial: bool,
+    pending_lang: str | None,
+    pending_count: int,
+    supported: list[str],
+    lock_threshold: float,
+    switch_min_confidence: float,
+    switch_turns: int,
+) -> tuple[str | None, str | None, int, bool]:
+    """Language lock / persist / switch policy (002). Pure and deterministic (Principle X).
+
+    Returns ``(locked_lang, pending_lang, pending_count, switched)``:
+      * ``locked_lang`` — the session's ``active_lang`` after this turn (``None`` = not yet locked;
+        the caller uses the fallback for the turn but does not persist a lock).
+      * ``pending_lang`` / ``pending_count`` — the sustained-switch accumulator after this turn.
+      * ``switched`` — ``True`` iff a sustained switch changed the locked language this turn.
+
+    Not-yet-locked: lock on the first confident supported detection (parity with 001). Locked: a
+    matching / weak / short / unsupported turn keeps the lock and resets the accumulator; a
+    confident, substantial turn in a *different* supported language accumulates, and switches at
+    ``switch_turns`` consecutive such turns — so a single foreign phrase never flips the language.
+    """
+
+    if active_lang is None:
+        if detected in supported and confidence >= lock_threshold:
+            return detected, None, 0, False  # first lock (not a "switch")
+        return None, None, 0, False  # stay unlocked; caller uses fallback
+
+    if (
+        not substantial
+        or detected == active_lang
+        or detected not in supported
+        or confidence < switch_min_confidence
+    ):
+        return active_lang, None, 0, False  # weak / match → keep lock, reset accumulator
+
+    if detected == pending_lang:
+        count = pending_count + 1
+        if count >= switch_turns:
+            return detected, None, 0, True  # sustained switch
+        return active_lang, detected, count, False
+    return active_lang, detected, 1, False  # new candidate language → start accumulating
+
+
 def fuse(
     deterministic: LanguageResult,
     llm_lang: str | None,

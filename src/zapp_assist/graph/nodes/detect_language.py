@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from ...lang.detector import fuse
+from ...lang.detector import apply_switch_policy, fuse
 from ..deps import Deps
 from ..state import TurnState
 from ._util import add_span, now
@@ -49,22 +49,31 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
         deterministic, llm_lang, llm_conf, cfg.languages.supported, cfg.languages.fallback
     )
 
-    # Session language lock: keep an already-locked language; otherwise lock on a confident
-    # deterministic detection (deterministic wins for this correctness-critical choice, Principle
-    # X — an LLM disagreement lowers `lang_confidence` but does not by itself flip active_lang).
-    # Fall back to the default only when detection is genuinely unsupported/low-confidence.
-    if state.session.active_lang:
-        active = state.session.active_lang
-    elif (
-        fused.detected_lang in cfg.languages.supported
-        and deterministic.lang_confidence >= cfg.thresholds.language_lock
-    ):
-        active = fused.detected_lang
-        state.session.active_lang = active
-    else:
-        active = cfg.languages.fallback
-        if fused.detected_lang not in cfg.languages.supported:
-            state.needs_review_override = True
+    # Language lock/persist/switch policy (002). The deterministic detection drives the choice
+    # (Principle X); an LLM disagreement only lowers `lang_confidence` via fuse(). A locked language
+    # persists across weak/short turns and switches only on sustained, confident intent — a single
+    # foreign phrase never flips it. Short turns cannot drive a switch (too little signal).
+    thr = cfg.thresholds
+    substantial = len(state.user_text.strip()) >= thr.language_switch_min_chars
+    locked, pending_lang, pending_count, switched = apply_switch_policy(
+        active_lang=state.session.active_lang,
+        detected=deterministic.detected_lang,
+        confidence=deterministic.lang_confidence,
+        substantial=substantial,
+        pending_lang=state.session.pending_switch_lang,
+        pending_count=state.session.pending_switch_count,
+        supported=cfg.languages.supported,
+        lock_threshold=thr.language_lock,
+        switch_min_confidence=thr.language_switch_min_confidence,
+        switch_turns=thr.language_switch_turns,
+    )
+    state.session.active_lang = locked
+    state.session.pending_switch_lang = pending_lang
+    state.session.pending_switch_count = pending_count
+
+    active = locked if locked is not None else cfg.languages.fallback
+    if locked is None and fused.detected_lang not in cfg.languages.supported:
+        state.needs_review_override = True
 
     fused.active_lang = active
     state.language = fused
@@ -77,7 +86,8 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
             "detected": fused.detected_lang,
             "active": active,
             "confidence": fused.lang_confidence,
-            "llm_agrees": llm_lang == fused.detected_lang if llm_lang else None,
+            "switched": switched,
+            "pending": pending_lang,
         },
     )
     return state

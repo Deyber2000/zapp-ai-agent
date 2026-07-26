@@ -29,6 +29,8 @@ thresholds:
   language_switch_min_confidence: 0.75
   # Consecutive confident turns in a different supported language required to switch active_lang.
   language_switch_turns: 2
+  # A turn shorter than this cannot drive a language switch (stops "ok"/"sí" from thrashing).
+  language_switch_min_chars: 12
   # Replies shorter than this skip language verification (too short to detect reliably).
   reply_verify_min_chars: 15
 

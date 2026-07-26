@@ -23,6 +23,7 @@ from .llm.client import LLMClient
 from .memory.session_store import InMemorySessionStore, SessionStore
 from .obs.trace import Trace
 from .rag.store import KB_DIR, BM25Store
+from .tools.normalize import register_normalize_tools
 from .tools.registry import ToolRegistry
 
 
@@ -50,7 +51,7 @@ class Agent:
             llm=llm or _default_llm(cfg),
             detector=detector or LinguaDetector(cfg.languages.supported, cfg.languages.fallback),
             guardrails=guardrails or default_registry(),
-            tools=tools or ToolRegistry(),
+            tools=tools or _default_tools(),
             rag=rag or BM25Store.from_kb_dir(KB_DIR, cfg.thresholds.grounding_min_score),
         )
         return cls(deps, store or InMemorySessionStore())
@@ -77,6 +78,14 @@ class Agent:
     @property
     def deps(self) -> Deps:
         return self._deps
+
+
+def _default_tools() -> ToolRegistry:
+    """The production tool registry: signal-fusion normalization (US2), backend actions (US3)."""
+
+    registry = ToolRegistry()
+    register_normalize_tools(registry)
+    return registry
 
 
 def _default_llm(cfg: AppConfig) -> LLMClient:

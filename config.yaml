@@ -13,6 +13,7 @@ node_effort:
   detect_language: low
   route_intent: low
   support_rag: medium
+  onboarding: low
   verify_confidence: medium
 
 thresholds:

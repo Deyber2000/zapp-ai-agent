@@ -41,6 +41,31 @@ SAFE_FALLBACK_TEMPLATES = {
     "pt": "Desculpe — tive um problema temporário e não consegui concluir. "
     "Sinalizei para um colega.",
 }
+# Onboarding slot-fill prompts — ask for ONE missing field at a time, never fabricate the rest.
+ONBOARDING_ASK_NAME = {
+    "es": "¡Claro! Para completar tu registro, ¿cuál es tu nombre completo?",
+    "en": "Sure! To finish setting up your account, what's your full name?",
+    "pt": "Claro! Para concluir seu cadastro, qual é o seu nome completo?",
+}
+ONBOARDING_ASK_PHONE = {
+    "es": "Gracias. ¿Cuál es tu número de teléfono (con el código de tu país)?",
+    "en": "Thanks. What's your phone number (including your country code)?",
+    "pt": "Obrigado. Qual é o seu número de telefone (com o código do seu país)?",
+}
+# Confirmations — `{name}` / `{phone}` are filled by the onboarding node.
+ONBOARDING_CONFIRM = {
+    "es": "¡Listo, {name}! Registré tu número como {phone}. ¿Es correcto?",
+    "en": "All set, {name}! I saved your number as {phone}. Is that correct?",
+    "pt": "Tudo certo, {name}! Salvei seu número como {phone}. Está correto?",
+}
+ONBOARDING_UNVERIFIED = {
+    "es": "Gracias, {name}. No pude validar el número «{phone}», así que lo marqué "
+    "para que un compañero lo revise.",
+    "en": "Thanks, {name}. I couldn't validate the number “{phone}”, so I've flagged it "
+    "for a teammate to review.",
+    "pt": "Obrigado, {name}. Não consegui validar o número “{phone}”, então sinalizei "
+    "para um colega revisar.",
+}
 
 
 def tmpl(templates: dict[str, str], lang: str) -> str:

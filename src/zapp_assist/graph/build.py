@@ -23,6 +23,7 @@ from .nodes import (
     detect_language,
     guardrail_in,
     guardrail_out,
+    onboarding,
     placeholder,
     route_intent,
     support_rag,
@@ -70,9 +71,11 @@ def _after_intent(state: GraphState) -> str:
         return "verify"
     if ts.intent == "support":
         return "support"
+    if ts.intent == "onboarding":
+        return "onboarding"
     if ts.intent == "clarify":
         return "verify"
-    # onboarding / action / out_of_scope → placeholder seam (US2/US3/US4)
+    # action / out_of_scope → placeholder seam (US3/US4)
     return "placeholder"
 
 
@@ -87,6 +90,7 @@ def build_graph(deps: Deps) -> Any:
     graph.add_node("detect_language", _wrap("detect_language", detect_language, deps))
     graph.add_node("route_intent", _wrap("route_intent", route_intent, deps))
     graph.add_node("support_rag", _wrap("support_rag", support_rag, deps))
+    graph.add_node("onboarding", _wrap("onboarding", onboarding, deps))
     graph.add_node("placeholder", _wrap("placeholder", placeholder, deps))
     graph.add_node("verify_confidence", _wrap("verify_confidence", verify_confidence, deps))
     graph.add_node("guardrail_out", _wrap("guardrail_out", guardrail_out, deps))
@@ -103,11 +107,13 @@ def build_graph(deps: Deps) -> Any:
         _after_intent,
         {
             "support": "support_rag",
+            "onboarding": "onboarding",
             "placeholder": "placeholder",
             "verify": "verify_confidence",
         },
     )
     graph.add_edge("support_rag", "verify_confidence")
+    graph.add_edge("onboarding", "verify_confidence")
     graph.add_edge("placeholder", "verify_confidence")
     graph.add_edge("verify_confidence", "guardrail_out")
     graph.add_edge("guardrail_out", "assemble")

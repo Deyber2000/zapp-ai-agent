@@ -6,6 +6,7 @@ from .assemble import assemble
 from .detect_language import LangSignal, detect_language
 from .guardrail_in import guardrail_in
 from .guardrail_out import guardrail_out
+from .onboarding import OnboardingExtraction, onboarding
 from .placeholder import placeholder
 from .route_intent import IntentSignal, route_intent
 from .support_rag import GroundedAnswer, support_rag
@@ -16,6 +17,7 @@ __all__ = [
     "detect_language",
     "guardrail_in",
     "guardrail_out",
+    "onboarding",
     "placeholder",
     "route_intent",
     "support_rag",
@@ -23,4 +25,5 @@ __all__ = [
     "LangSignal",
     "IntentSignal",
     "GroundedAnswer",
+    "OnboardingExtraction",
 ]

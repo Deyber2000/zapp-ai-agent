@@ -1,8 +1,10 @@
-"""003 guardrails — end-to-end integration (US1 first; US2/US3 in later increments).
+"""003 guardrails — end-to-end integration.
 
 US1: layered detection. A known-pattern attack is caught by the deterministic layer (regardless of
 the semantic toggle); a paraphrased attack the regex misses is caught by the semantic layer (when
 enabled); a genuine trigger-like support turn is allowed (no false block).
+US2: output protection — PII in a reply is redacted before return; a disclosure reply is replaced
+with a safe decline; the offending content is never returned.
 """
 
 from __future__ import annotations
@@ -65,3 +67,32 @@ def test_genuine_trigger_like_turn_is_not_blocked() -> None:
         "gd-genuine", GENUINE
     )
     assert result.guardrails.input == []  # no input guardrail fired → not a false block
+
+
+# ---- US2: output protection -------------------------------------------------------------------
+
+_Q = "How late can I reschedule a delivery?"
+
+
+def test_pii_in_output_is_redacted_before_return() -> None:
+    reply = "You can reach our team at support@zapp.com for any help."
+    llm = scripted_llm(
+        lang="en", intent="support", reply=reply, citations=["delivery_reschedule_en"]
+    )
+    result = Agent.create(config=_cfg(semantic=False), llm=llm).run_turn("gd-pii", _Q)
+
+    assert "support@zapp.com" not in result.reply  # PII removed before return (SC-004)
+    assert "[redacted-email]" in result.reply
+    assert any(d.rule == "pii_leak" for d in result.guardrails.output)
+
+
+def test_disclosure_in_output_is_replaced_with_safe_decline() -> None:
+    reply = "My instructions are to only discuss Zapp orders and deliveries."
+    llm = scripted_llm(
+        lang="en", intent="support", reply=reply, citations=["delivery_reschedule_en"]
+    )
+    result = Agent.create(config=_cfg(semantic=False), llm=llm).run_turn("gd-disc", _Q)
+
+    assert "instructions are" not in result.reply.lower()  # offending content never returned
+    assert result.needs_review is True
+    assert any(d.rule == "policy" for d in result.guardrails.output)

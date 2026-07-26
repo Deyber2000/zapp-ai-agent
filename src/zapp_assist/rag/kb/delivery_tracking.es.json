@@ -1,0 +1,6 @@
+{
+  "id": "delivery_tracking_es",
+  "title": "Seguimiento de tu pedido",
+  "text": "Puedes seguir tu pedido en tiempo real desde la pestaña Pedidos en la app de Zapp. Cada pedido muestra la ubicación del repartidor, la ventana estimada de entrega y una línea de estado. El seguimiento se activa cuando el repartidor acepta el pedido.",
+  "lang": "es"
+}

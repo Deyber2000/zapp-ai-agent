@@ -1,0 +1,45 @@
+# Zapp Assist — configuration-as-data (Constitution: Future-Proofing, Config as data).
+# Models, per-node effort, confidence thresholds, supported languages, and the pricing table
+# all live here so behaviour is tunable without code changes.
+
+models:
+  # Primary reasoning model (router, detector-assist, responder, verifier).
+  primary: claude-sonnet-5
+  # Swappable fallback for the hardest cases (higher quality, higher cost/latency).
+  fallback: claude-opus-5
+
+# Adaptive-thinking effort per node: low for cheap routing/detection, medium for answering/verifying.
+node_effort:
+  detect_language: low
+  route_intent: low
+  support_rag: medium
+  verify_confidence: medium
+
+thresholds:
+  # Below this combined confidence a turn is flagged needs_review=true.
+  review_confidence: 0.6
+  # Minimum fused language confidence to lock a session's active_lang.
+  language_lock: 0.75
+  # Minimum BM25 score for a retrieved KB snippet to count as grounding.
+  grounding_min_score: 1.0
+
+languages:
+  supported: [es, en, pt]
+  fallback: en
+
+# Pricing per 1,000,000 tokens (USD). `temperature_capable` marks the ONLY models that accept a
+# `temperature` parameter — current Claude frontier models (sonnet-5 / opus-5) reject it (HTTP 400),
+# so the LLM client forwards `temperature` solely to models flagged true here.
+pricing:
+  claude-sonnet-5:
+    input_per_1m: 3.0
+    output_per_1m: 15.0
+    temperature_capable: false
+  claude-opus-5:
+    input_per_1m: 5.0
+    output_per_1m: 25.0
+    temperature_capable: false
+  claude-haiku-4-5:
+    input_per_1m: 1.0
+    output_per_1m: 5.0
+    temperature_capable: true

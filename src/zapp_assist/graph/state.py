@@ -67,3 +67,8 @@ class TurnState:
     needs_review_override: bool = False
     grounding_confidence: float | None = None
     intent_confidence: float | None = None
+
+    # reply-language verification (002); transient, surfaced only in the trace (not the contract)
+    reply_lang: str | None = None
+    reply_match: bool | None = None
+    reply_corrected: bool = False

@@ -32,6 +32,8 @@ class LanguageResult(BaseModel):
 class LanguageDetector(Protocol):
     def detect(self, text: str) -> LanguageResult: ...
 
+    def language_of(self, text: str) -> tuple[str, float]: ...
+
 
 class LinguaDetector:
     """Deterministic, offline detector over the supported languages."""
@@ -61,6 +63,21 @@ class LinguaDetector:
         return LanguageResult(
             detected_lang=lang, active_lang=lang, lang_confidence=float(top.value)
         )
+
+    def language_of(self, text: str) -> tuple[str, float]:
+        """Detect the (supported) language of an arbitrary string + confidence (002 reply check).
+
+        Returns the top supported language + confidence; empty/undetectable text → (fallback, 0.0).
+        """
+
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return self._fallback, 0.0
+        values = self._detector.compute_language_confidence_values(cleaned)
+        if not values:
+            return self._fallback, 0.0
+        top = values[0]
+        return _LANGUAGE_TO_ISO.get(top.language, self._fallback), float(top.value)
 
 
 def fuse(

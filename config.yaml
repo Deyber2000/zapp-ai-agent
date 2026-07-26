@@ -15,6 +15,7 @@ node_effort:
   support_rag: medium
   onboarding: low
   action_plan: low
+  verify_reply_language: low
   verify_confidence: medium
 
 thresholds:
@@ -24,6 +25,12 @@ thresholds:
   language_lock: 0.75
   # Minimum BM25 score for a retrieved KB snippet to count as grounding.
   grounding_min_score: 1.0
+  # Multilingual policy (002): confidence floor for a turn to count toward a language switch.
+  language_switch_min_confidence: 0.75
+  # Consecutive confident turns in a different supported language required to switch active_lang.
+  language_switch_turns: 2
+  # Replies shorter than this skip language verification (too short to detect reliably).
+  reply_verify_min_chars: 15
 
 languages:
   supported: [es, en, pt]

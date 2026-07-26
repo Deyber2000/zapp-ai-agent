@@ -42,6 +42,10 @@ class Session(BaseModel):
 
     session_id: str
     active_lang: str | None = None
+    # Sustained-switch accumulator (002): a candidate new language and how many consecutive
+    # confident turns have supported it. Reset whenever a turn matches active_lang or is weak.
+    pending_switch_lang: str | None = None
+    pending_switch_count: int = 0
     slots: dict[str, SlotValue] = Field(default_factory=dict)
     pending_action: PendingAction | None = None
     history: list[TurnRef] = Field(default_factory=list)

@@ -40,6 +40,12 @@ class Thresholds(BaseModel):
     review_confidence: float = 0.6
     language_lock: float = 0.75
     grounding_min_score: float = 1.0
+    # Multilingual policy (002): confidence floor for a turn to count toward a language switch,
+    # number of consecutive confident turns in a new supported language to switch, and the minimum
+    # reply length to bother verifying the reply's language (short replies are treated in-language).
+    language_switch_min_confidence: float = 0.75
+    language_switch_turns: int = 2
+    reply_verify_min_chars: int = 15
 
 
 class AppConfig(BaseModel):

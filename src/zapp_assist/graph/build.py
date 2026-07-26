@@ -30,6 +30,7 @@ from .nodes import (
     route_intent,
     support_rag,
     verify_confidence,
+    verify_reply_language,
 )
 from .state import TurnState
 
@@ -105,6 +106,9 @@ def build_graph(deps: Deps) -> Any:
     graph.add_node("action_plan", _wrap("action_plan", action_plan, deps))
     graph.add_node("action_execute", _wrap("action_execute", action_execute, deps))
     graph.add_node("out_of_scope", _wrap("out_of_scope", out_of_scope, deps))
+    graph.add_node(
+        "verify_reply_language", _wrap("verify_reply_language", verify_reply_language, deps)
+    )
     graph.add_node("verify_confidence", _wrap("verify_confidence", verify_confidence, deps))
     graph.add_node("guardrail_out", _wrap("guardrail_out", guardrail_out, deps))
     # `assemble` always runs, even under degradation, so every path yields a valid contract.
@@ -124,14 +128,16 @@ def build_graph(deps: Deps) -> Any:
             "action_plan": "action_plan",
             "action_execute": "action_execute",
             "out_of_scope": "out_of_scope",
-            "verify": "verify_confidence",
+            "verify": "verify_reply_language",
         },
     )
-    graph.add_edge("support_rag", "verify_confidence")
-    graph.add_edge("onboarding", "verify_confidence")
-    graph.add_edge("action_plan", "verify_confidence")
-    graph.add_edge("action_execute", "verify_confidence")
-    graph.add_edge("out_of_scope", "verify_confidence")
+    # Every path that produces a reply flows through reply-language verification before confidence.
+    graph.add_edge("support_rag", "verify_reply_language")
+    graph.add_edge("onboarding", "verify_reply_language")
+    graph.add_edge("action_plan", "verify_reply_language")
+    graph.add_edge("action_execute", "verify_reply_language")
+    graph.add_edge("out_of_scope", "verify_reply_language")
+    graph.add_edge("verify_reply_language", "verify_confidence")
     graph.add_edge("verify_confidence", "guardrail_out")
     graph.add_edge("guardrail_out", "assemble")
     graph.add_edge("assemble", END)

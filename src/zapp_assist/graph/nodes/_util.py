@@ -63,6 +63,17 @@ ONBOARDING_UNVERIFIED = {
 }
 
 
+# Fail-safe when the reply cannot be produced in the active language after one correction (002).
+LANG_MISMATCH_TEMPLATES = {
+    "es": "Lo siento, tuve problemas para responder en tu idioma, así que lo marqué para que lo "
+    "revise un compañero.",
+    "en": "Sorry — I had trouble replying in your language, so I've flagged this for a teammate "
+    "to review.",
+    "pt": "Desculpe — tive dificuldade para responder no seu idioma, então sinalizei para um "
+    "colega revisar.",
+}
+
+
 def tmpl(templates: dict[str, str], lang: str) -> str:
     return templates.get(lang, templates["en"])
 

@@ -13,6 +13,7 @@ from .out_of_scope import out_of_scope
 from .route_intent import IntentSignal, route_intent
 from .support_rag import GroundedAnswer, support_rag
 from .verify_confidence import verify_confidence
+from .verify_reply_language import RewrittenReply, verify_reply_language
 
 __all__ = [
     "action_execute",
@@ -26,9 +27,11 @@ __all__ = [
     "route_intent",
     "support_rag",
     "verify_confidence",
+    "verify_reply_language",
     "LangSignal",
     "IntentSignal",
     "GroundedAnswer",
     "OnboardingExtraction",
     "ActionRequest",
+    "RewrittenReply",
 ]

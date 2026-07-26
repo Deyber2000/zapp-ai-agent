@@ -139,23 +139,32 @@ def _coherence_llm() -> MockLLMClient:
 
 def test_language_persists_across_short_and_matching_turns() -> None:
     agent = _agent(_coherence_llm())
-    assert agent.run_turn("coh", PT1).active_lang == "pt"  # locks pt
-    assert agent.run_turn("coh", "ok").active_lang == "pt"  # short → keeps pt (SC-003)
-    assert agent.run_turn("coh", PT2).active_lang == "pt"  # pt again → keeps pt
+    r1 = agent.run_turn("coh", PT1)  # locks pt
+    r2 = agent.run_turn("coh", "ok")  # short → keeps pt (SC-003)
+    r3 = agent.run_turn("coh", PT2)  # pt again → keeps pt
+    assert [r1.active_lang, r2.active_lang, r3.active_lang] == ["pt", "pt", "pt"]
+    # replies stay Portuguese too — not just the active_lang field
+    assert _lang_of(r1.reply) == "pt" and _lang_of(r3.reply) == "pt"
 
 
-def test_sustained_switch_updates_active_language() -> None:
+def test_sustained_switch_updates_active_language_and_reply() -> None:
     agent = _agent(_coherence_llm())
-    assert agent.run_turn("sw", PT1).active_lang == "pt"  # locked pt
-    assert agent.run_turn("sw", EN1).active_lang == "pt"  # 1st EN → still pt (accumulating)
-    assert agent.run_turn("sw", EN2).active_lang == "en"  # 2nd EN → sustained switch (SC-004)
+    r1 = agent.run_turn("sw", PT1)  # locked pt
+    r2 = agent.run_turn("sw", EN1)  # 1st EN → still pt (accumulating)
+    r3 = agent.run_turn("sw", EN2)  # 2nd EN → sustained switch (SC-004)
+    assert [r1.active_lang, r2.active_lang, r3.active_lang] == ["pt", "pt", "en"]
+    # the REPLY follows the policy: Portuguese before the switch, English after
+    assert _lang_of(r2.reply) == "pt"
+    assert _lang_of(r3.reply) == "en"
 
 
 def test_one_off_foreign_phrase_does_not_switch() -> None:
     agent = _agent(_coherence_llm())
-    assert agent.run_turn("one", PT1).active_lang == "pt"  # locked pt
-    assert agent.run_turn("one", EN3).active_lang == "pt"  # single EN phrase → still pt
-    assert agent.run_turn("one", PT3).active_lang == "pt"  # back to pt → never switched (SC-004)
+    r1 = agent.run_turn("one", PT1)  # locked pt
+    r2 = agent.run_turn("one", EN3)  # single EN phrase → still pt
+    r3 = agent.run_turn("one", PT3)  # back to pt → never switched (SC-004)
+    assert [r1.active_lang, r2.active_lang, r3.active_lang] == ["pt", "pt", "pt"]
+    assert _lang_of(r3.reply) == "pt"  # reply stays Portuguese throughout
 
 
 # ---- US3: graceful degradation on unsupported / low-confidence --------------------------------

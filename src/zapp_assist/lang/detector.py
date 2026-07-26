@@ -19,6 +19,10 @@ _ISO_TO_LANGUAGE = {
 }
 _LANGUAGE_TO_ISO = {v: k for k, v in _ISO_TO_LANGUAGE.items()}
 
+# Common languages OUTSIDE the supported set. Used only by the broad guard so a genuinely
+# unsupported language is recognised (US3) instead of being forced into the nearest supported one.
+_GUARD_DISTRACTORS = (Language.FRENCH, Language.GERMAN, Language.ITALIAN)
+
 
 class LanguageResult(BaseModel):
     """Detected language plus the (session-locked) active language and confidence."""
@@ -34,6 +38,8 @@ class LanguageDetector(Protocol):
 
     def language_of(self, text: str) -> tuple[str, float]: ...
 
+    def is_foreign(self, text: str, min_confidence: float = 0.75) -> tuple[str, float] | None: ...
+
 
 class LinguaDetector:
     """Deterministic, offline detector over the supported languages."""
@@ -46,6 +52,11 @@ class LinguaDetector:
             langs = [Language.SPANISH, Language.ENGLISH, Language.PORTUGUESE]
         self._detector = LanguageDetectorBuilder.from_languages(*langs).build()
         self._fallback = fallback
+        self._supported = {_LANGUAGE_TO_ISO[lang] for lang in langs}
+        # Broad guard: supported + a few common distractors, so a genuinely unsupported language is
+        # recognised (US3) rather than silently mapped to the nearest supported one.
+        guard_langs = list(dict.fromkeys([*langs, *_GUARD_DISTRACTORS]))
+        self._guard = LanguageDetectorBuilder.from_languages(*guard_langs).build()
 
     def detect(self, text: str) -> LanguageResult:
         cleaned = (text or "").strip()
@@ -78,6 +89,26 @@ class LinguaDetector:
             return self._fallback, 0.0
         top = values[0]
         return _LANGUAGE_TO_ISO.get(top.language, self._fallback), float(top.value)
+
+    def is_foreign(self, text: str, min_confidence: float = 0.75) -> tuple[str, float] | None:
+        """Detect a confidently UNSUPPORTED language (US3). Returns (iso, confidence) or None.
+
+        Uses the broad guard (supported + common distractors); returns a result only when the top
+        language is outside the supported set with confidence at or above `min_confidence` — so an
+        unsupported language degrades safely instead of being forced into the nearest supported one.
+        """
+
+        cleaned = (text or "").strip()
+        if not cleaned:
+            return None
+        values = self._guard.compute_language_confidence_values(cleaned)
+        if not values:
+            return None
+        top = values[0]
+        iso = top.language.iso_code_639_1.name.lower()
+        if iso not in self._supported and top.value >= min_confidence:
+            return iso, float(top.value)
+        return None
 
 
 def apply_switch_policy(

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.mock_llm import MockCall, MockLLMClient
+from tests.support.mock_llm import MockCall, MockLLMClient, scripted_llm
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
 from zapp_assist.graph.nodes._util import LANG_MISMATCH_TEMPLATES
@@ -156,3 +156,28 @@ def test_one_off_foreign_phrase_does_not_switch() -> None:
     assert agent.run_turn("one", PT1).active_lang == "pt"  # locked pt
     assert agent.run_turn("one", EN3).active_lang == "pt"  # single EN phrase → still pt
     assert agent.run_turn("one", PT3).active_lang == "pt"  # back to pt → never switched (SC-004)
+
+
+# ---- US3: graceful degradation on unsupported / low-confidence --------------------------------
+
+FR = "Bonjour, je voudrais reprogrammer ma livraison pour demain matin s'il vous plaît."
+DE = "Ich möchte meine Lieferung auf morgen verschieben, bitte."
+
+
+@pytest.mark.parametrize("iso,text", [("fr", FR), ("de", DE)])
+def test_unsupported_language_degrades_to_fallback(iso: str, text: str) -> None:
+    result = _agent(scripted_llm(lang="en", intent="support")).run_turn(f"oos-{iso}", text)
+
+    assert result.active_lang == "en"  # fallback — never the unsupported language (SC-005)
+    assert result.detected_lang == iso  # honestly reports the detected (unsupported) language
+    assert result.needs_review is True
+    assert _lang_of(result.reply) == "en"  # reply is in a supported language, not fr/de
+
+
+def test_low_confidence_input_uses_fallback_safely() -> None:
+    # Undetectable input (no real language signal) → fallback, safe reply, no asserted language.
+    result = _agent(scripted_llm(lang="en", intent="clarify")).run_turn("lowconf", "?!?")
+
+    assert result.active_lang == "en"
+    assert result.reply
+    assert _lang_of(result.reply) == "en"

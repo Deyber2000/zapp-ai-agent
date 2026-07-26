@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from ...lang.detector import apply_switch_policy, fuse
+from ...lang.detector import LanguageResult, apply_switch_policy, fuse
 from ..deps import Deps
 from ..state import TurnState
 from ._util import add_span, now
@@ -29,6 +29,27 @@ class LangSignal(BaseModel):
 def detect_language(state: TurnState, deps: Deps) -> TurnState:
     start = now()
     cfg = deps.config
+
+    # US3: a confidently UNSUPPORTED language degrades safely — reply in the fallback language, flag
+    # for review, and do NOT lock/switch onto a misclassified supported language. Interrupts any
+    # pending switch. The reply-language node then guarantees the reply is in the fallback language.
+    foreign = deps.detector.is_foreign(state.user_text, cfg.thresholds.language_lock)
+    if foreign is not None:
+        iso, conf = foreign
+        state.needs_review_override = True
+        state.session.pending_switch_lang = None
+        state.session.pending_switch_count = 0
+        state.language = LanguageResult(
+            detected_lang=iso, active_lang=cfg.languages.fallback, lang_confidence=round(conf, 4)
+        )
+        add_span(
+            state.trace,
+            "detect_language",
+            start,
+            attrs={"detected": iso, "active": cfg.languages.fallback, "unsupported": True},
+        )
+        return state
+
     deterministic = deps.detector.detect(state.user_text)
 
     llm_lang: str | None = None

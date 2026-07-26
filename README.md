@@ -6,10 +6,10 @@ returned as a **single schema-valid JSON contract** — success, blocked, or deg
 
 > Take-home assessment for the **AI Agent Engineer** position at Zapp Global.
 
-**Status:** spec `001-support-agent` (US1–US5) and spec `002-multilingual` (US1–US4) are fully
-implemented — the orchestrated agent core plus verified in-language replies, a coherent language
-policy, and graceful degradation. Specs `003-guardrails` and `004-evaluation` deepen the remaining
-cross-cutting concerns next (see [Roadmap](#roadmap)).
+**Status:** specs `001-support-agent` (US1–US5), `002-multilingual` (US1–US4), and `003-guardrails`
+(US1–US4) are fully implemented — the orchestrated agent core, verified in-language replies + language
+policy, and a layered, configurable guardrail system. Spec `004-evaluation` is next (see
+[Roadmap](#roadmap)).
 
 ---
 
@@ -20,7 +20,7 @@ cross-cutting concerns next (see [Roadmap](#roadmap)).
 | **Grounded support** (US1) | Answers only from a curated KB (BM25 retrieval); **declines instead of inventing** when there is no grounding. |
 | **Onboarding intake** (US2) | Slot-fills contact data across turns; normalizes phone → **E.164 + country** deterministically and **fuses** it with the LLM's reading. |
 | **Actions with HITL** (US3) | State-changing actions (cancel/reschedule) are **restated and confirmed before executing**, exactly once. |
-| **Safety envelope** (US4) | Off-topic / unsafe / prompt-injection inputs are declined transparently, in the user's language, with the decision recorded in the contract. |
+| **Safety envelope** | **Layered guardrails** — deterministic regex rules + an optional semantic classifier (deterministic-first) catch off-topic / unsafe / injection input (incl. paraphrased); PII in output is redacted; policy is config-driven; every decision records rule/category/severity/action/layer. |
 | **Graceful degradation** (US5) | Any timeout / malformed output / tool error still yields a valid, safe, `needs_review=true` contract — never a crash. |
 | **Multilingual** | ES / EN / PT; replies are **verified** in-language (corrected once, else safe-flagged); language **persists** across turns and switches only on sustained intent; unsupported languages degrade to the fallback + review. |
 | **Observability** | Per-turn trace: one span per node + token/latency/cost accounting. |
@@ -41,7 +41,7 @@ uv run zapp-assist turn --session demo --text "¿hasta cuándo puedo reprogramar
 uv run zapp-assist chat        # interactive multi-turn (keeps active_lang + memory)
 
 # Verify everything (no key needed)
-uv run pytest                 # 82 tests: unit + contract + integration (001 + 002)
+uv run pytest                 # 100 tests: unit + contract + integration (001 + 002 + 003)
 uv run ruff check . && uv run mypy src
 ```
 
@@ -165,7 +165,11 @@ each remaining concern is deepened as its own vertical slice:
   across weak turns, switch only on sustained intent, never thrash), **graceful degradation** on
   unsupported languages (broad-guard detection → fallback + review), and language-**fidelity signals**
   in the trace for evaluation.
-- **`003-guardrails`** — the full input/output guardrail taxonomy and rule set.
+- **`003-guardrails`** ✅ *done* — a **layered** guardrail system: the deterministic regex rules plus
+  an optional **semantic classifier** (deterministic-first, off by default, fail-safe) that catches
+  paraphrased/obfuscated attacks; a **configurable policy** (enable/disable rules, override
+  severity/action, toggle the semantic layer — no code change); output redaction; and per-decision
+  category/severity/action/layer signals for evaluation.
 - **`004-evaluation`** — one-command, CI-ready eval suite: task success, language fidelity,
   guardrail precision/recall, LLM-as-judge quality, latency & cost, with a pre-generated report.
 - **`005-web-ui`** — a thin Streamlit client over `Agent.run_turn` (chat + contract/trace panel).

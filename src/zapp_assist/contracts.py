@@ -27,7 +27,11 @@ _SAFE_REPLY = {
 
 
 class GuardrailDecision(BaseModel):
-    """A single triggered guardrail rule and the action taken (recorded in the contract)."""
+    """A single triggered guardrail rule and the action taken (recorded in the contract).
+
+    `category` and `layer` were added by spec 003 (which owns the guardrail taxonomy); both are
+    defaulted so decisions built the 001 way still validate.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -35,6 +39,8 @@ class GuardrailDecision(BaseModel):
     action: GuardrailAction
     severity: Severity
     detail: str | None = None
+    category: str = "policy"
+    layer: Literal["deterministic", "semantic"] = "deterministic"
 
 
 class Guardrails(BaseModel):

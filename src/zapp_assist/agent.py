@@ -18,6 +18,7 @@ from .graph.deps import Deps
 from .graph.state import TurnState
 from .guardrails.baseline import default_registry
 from .guardrails.registry import GuardrailRegistry
+from .guardrails.semantic import LLMSemanticClassifier
 from .lang.detector import LanguageDetector, LinguaDetector
 from .llm.client import LLMClient
 from .memory.session_store import InMemorySessionStore, SessionStore
@@ -47,11 +48,13 @@ class Agent:
         rag: BM25Store | None = None,
     ) -> Agent:
         cfg = config or load_config()
+        resolved_llm = llm or _default_llm(cfg)
+        semantic = LLMSemanticClassifier(resolved_llm, cfg)  # off unless config enables it
         deps = Deps(
             config=cfg,
-            llm=llm or _default_llm(cfg),
+            llm=resolved_llm,
             detector=detector or LinguaDetector(cfg.languages.supported, cfg.languages.fallback),
-            guardrails=guardrails or default_registry(),
+            guardrails=guardrails or default_registry(cfg, semantic),
             tools=tools or _default_tools(),
             rag=rag or BM25Store.from_kb_dir(KB_DIR, cfg.thresholds.grounding_min_score),
         )

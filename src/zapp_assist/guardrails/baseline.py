@@ -1,20 +1,27 @@
-"""Baseline input/output guardrails (Constitution VIII; full taxonomy in spec `003`).
+"""Baseline (deterministic) guardrail layer + registry wiring (Constitution VIII).
 
-Input:  prompt-injection, PII, abuse, off-topic.
-Output: PII-leak, ungrounded-claim, policy.
+The regex rules below are the DETERMINISTIC layer (fast, offline, authoritative for known patterns).
+Each rule is tagged with a taxonomy `category` and carries a default severity/action that the config
+`guardrails.policy` can override per rule (or disable). `003` adds the semantic layer, wired in here
+via `default_registry(..., semantic=...)`; with the default config (semantic off, no overrides)
+behavior is byte-for-byte the `001` baseline.
 
-Each guardrail is deterministic and returns a `GuardrailDecision` or `None` (pass). They are
-intentionally conservative to minimise false positives on genuine support questions; spec `003`
-replaces these heuristics with the full rule set.
+Input:  prompt-injection, PII, abuse/toxicity, off-topic.
+Output: PII-leak, ungrounded-claim, policy/disclosure.
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
-from ..contracts import GuardrailDecision
+from ..contracts import GuardrailAction, GuardrailDecision, Severity
 from .registry import GuardrailContext, GuardrailRegistry
+
+if TYPE_CHECKING:
+    from ..config import AppConfig
 
 _INJECTION = re.compile(
     r"(ignore\s+(all\s+|your\s+|the\s+|previous\s+|above\s+|prior\s+)*(instructions|rules|prompt)"
@@ -60,114 +67,106 @@ _DECLINE_MARKERS = (
 
 @dataclass
 class _Rule:
+    """A deterministic rule: a predicate + its category and (policy-overridable) severity/action."""
+
     id: str
     stage: str
-    _check: object  # callable(ctx) -> GuardrailDecision | None
+    category: str
+    severity: Severity
+    action: GuardrailAction
+    detail: str
+    match: Callable[[GuardrailContext], bool]
 
     def check(self, ctx: GuardrailContext) -> GuardrailDecision | None:
-        return self._check(ctx)  # type: ignore[operator]
+        if self.match(ctx):
+            return GuardrailDecision(
+                rule=self.id,
+                action=self.action,
+                severity=self.severity,
+                detail=self.detail,
+                category=self.category,
+                layer="deterministic",
+            )
+        return None
 
 
-# -- input guardrails ------------------------------------------------------------------------
+# -- matchers (predicates over the guardrail context) ----------------------------------------
 
 
-def _prompt_injection(ctx: GuardrailContext) -> GuardrailDecision | None:
-    if _INJECTION.search(ctx.user_text):
-        return GuardrailDecision(
-            rule="prompt_injection",
-            action="refuse",
-            severity="high",
-            detail="instruction-override attempt",
-        )
-    return None
+def _m_injection(ctx: GuardrailContext) -> bool:
+    return bool(_INJECTION.search(ctx.user_text))
 
 
-def _pii_input(ctx: GuardrailContext) -> GuardrailDecision | None:
-    if _EMAIL.search(ctx.user_text) or _LONG_DIGITS.search(ctx.user_text):
-        return GuardrailDecision(
-            rule="pii",
-            action="redact",
-            severity="medium",
-            detail="personal data detected in input",
-        )
-    return None
+def _m_pii_input(ctx: GuardrailContext) -> bool:
+    return bool(_EMAIL.search(ctx.user_text) or _LONG_DIGITS.search(ctx.user_text))
 
 
-def _abuse(ctx: GuardrailContext) -> GuardrailDecision | None:
-    if _ABUSE.search(ctx.user_text):
-        return GuardrailDecision(
-            rule="abuse",
-            action="refuse",
-            severity="medium",
-            detail="abusive language",
-        )
-    return None
+def _m_abuse(ctx: GuardrailContext) -> bool:
+    return bool(_ABUSE.search(ctx.user_text))
 
 
-def _off_topic(ctx: GuardrailContext) -> GuardrailDecision | None:
-    if _OFFTOPIC.search(ctx.user_text):
-        return GuardrailDecision(
-            rule="off_topic",
-            action="refuse",
-            severity="low",
-            detail="request outside the Zapp support domain",
-        )
-    return None
+def _m_off_topic(ctx: GuardrailContext) -> bool:
+    return bool(_OFFTOPIC.search(ctx.user_text))
 
 
-# -- output guardrails -----------------------------------------------------------------------
-
-
-def _pii_leak(ctx: GuardrailContext) -> GuardrailDecision | None:
+def _m_pii_leak(ctx: GuardrailContext) -> bool:
     reply = ctx.draft_reply or ""
-    if _EMAIL.search(reply) or _LONG_DIGITS.search(reply):
-        return GuardrailDecision(
-            rule="pii_leak",
-            action="redact",
-            severity="medium",
-            detail="personal data in reply",
-        )
-    return None
+    return bool(_EMAIL.search(reply) or _LONG_DIGITS.search(reply))
 
 
-def _ungrounded(ctx: GuardrailContext) -> GuardrailDecision | None:
+def _m_ungrounded(ctx: GuardrailContext) -> bool:
+    # Backstop: retrieval was attempted (list present) but empty, and the reply is NOT a decline —
+    # i.e. it asserts something without grounding.
     reply = (ctx.draft_reply or "").strip()
-    # Only a backstop: retrieval was attempted (list present) but empty, and the reply is NOT a
-    # decline — i.e. it asserts something without grounding.
     if isinstance(ctx.retrieval, list) and len(ctx.retrieval) == 0 and reply:
         low = reply.lower()
-        if not any(marker in low for marker in _DECLINE_MARKERS):
-            return GuardrailDecision(
-                rule="ungrounded",
-                action="escalate",
-                severity="medium",
-                detail="answer not grounded in the knowledge source",
-            )
-    return None
+        return not any(marker in low for marker in _DECLINE_MARKERS)
+    return False
 
 
-def _policy(ctx: GuardrailContext) -> GuardrailDecision | None:
-    if _LEAK.search(ctx.draft_reply or ""):
-        return GuardrailDecision(
-            rule="policy",
-            action="refuse",
-            severity="high",
-            detail="reply would disclose internal instructions",
-        )
-    return None
+def _m_policy(ctx: GuardrailContext) -> bool:
+    return bool(_LEAK.search(ctx.draft_reply or ""))
 
 
-def default_registry() -> GuardrailRegistry:
-    """The baseline guardrail set, wired for `001`."""
+def _base_rules() -> list[_Rule]:
+    """Fresh rule instances so policy overrides never mutate shared state; defaults = 001."""
 
-    registry = GuardrailRegistry()
-    registry.register(_Rule("prompt_injection", "input", _prompt_injection))
-    registry.register(_Rule("pii", "input", _pii_input))
-    registry.register(_Rule("abuse", "input", _abuse))
-    registry.register(_Rule("off_topic", "input", _off_topic))
-    registry.register(_Rule("pii_leak", "output", _pii_leak))
-    registry.register(_Rule("ungrounded", "output", _ungrounded))
-    registry.register(_Rule("policy", "output", _policy))
+    return [
+        _Rule("prompt_injection", "input", "prompt_injection", "high", "refuse",
+              "instruction-override attempt", _m_injection),
+        _Rule("pii", "input", "pii", "medium", "redact",
+              "personal data detected in input", _m_pii_input),
+        _Rule("abuse", "input", "toxicity", "medium", "refuse", "abusive language", _m_abuse),
+        _Rule("off_topic", "input", "off_topic", "low", "refuse",
+              "request outside the Zapp support domain", _m_off_topic),
+        _Rule("pii_leak", "output", "pii_leak", "medium", "redact",
+              "personal data in reply", _m_pii_leak),
+        _Rule("ungrounded", "output", "ungrounded", "medium", "escalate",
+              "answer not grounded in the knowledge source", _m_ungrounded),
+        _Rule("policy", "output", "disclosure", "high", "refuse",
+              "reply would disclose internal instructions", _m_policy),
+    ]
+
+
+def default_registry(config: AppConfig | None = None, semantic: Any = None) -> GuardrailRegistry:
+    """The baseline (deterministic) rules, with config policy applied + an optional semantic layer.
+
+    Policy (`config.guardrails.policy`, keyed by rule id) can disable a rule or override its
+    severity/action without code changes; absent → the rule's defaults (= `001`).
+    """
+
+    policy = config.guardrails.policy if config is not None else {}
+    registry = GuardrailRegistry(semantic=semantic)
+    for rule in _base_rules():
+        override = policy.get(rule.id)
+        if override is not None:
+            if not override.enabled:
+                continue
+            if override.severity is not None:
+                rule.severity = override.severity
+            if override.action is not None:
+                rule.action = override.action
+        registry.register(rule)
     return registry
 
 

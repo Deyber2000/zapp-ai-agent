@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ...guardrails.registry import GuardrailContext
+from ...guardrails.registry import GuardrailContext, governing_action
 from ..deps import Deps
 from ..state import TurnState
 from ._util import add_span, now
@@ -18,17 +18,24 @@ def guardrail_in(state: TurnState, deps: Deps) -> TurnState:
     decisions = deps.guardrails.run("input", ctx)
     state.guardrails_in = decisions
 
-    # A refuse/escalate decision blocks processing; the safe decline is finalised in `assemble`
-    # once the active language is known. Escalations additionally flag the turn for review.
-    if any(d.action in ("refuse", "escalate") for d in decisions):
+    # Most severe action governs (003): refuse/escalate block processing; the safe decline is
+    # finalised in `assemble` once the active language is known. Escalations also flag for review.
+    if governing_action(decisions) in ("refuse", "escalate"):
         state.blocked = True
-        if any(d.action == "escalate" for d in decisions):
-            state.needs_review_override = True
+    if any(d.action == "escalate" for d in decisions):
+        state.needs_review_override = True
+    # Fail-safe: if the semantic layer was enabled but degraded, we could not fully check → flag.
+    if deps.guardrails.semantic_degraded:
+        state.needs_review_override = True
 
     add_span(
         state.trace,
         "guardrail_in",
         start,
-        attrs={"decisions": len(decisions), "blocked": state.blocked},
+        attrs={
+            "decisions": len(decisions),
+            "blocked": state.blocked,
+            "semantic_degraded": deps.guardrails.semantic_degraded,
+        },
     )
     return state

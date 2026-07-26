@@ -54,3 +54,13 @@ pricing:
     input_per_1m: 1.0
     output_per_1m: 5.0
     temperature_capable: true
+
+# Guardrail policy (003). `semantic_enabled` toggles the optional LLM semantic layer (off by default,
+# so the deterministic regex layer alone runs and matches 001 behavior). `policy` holds per-rule
+# overrides keyed by rule id — e.g. disable a noisy rule or change its action/severity without code:
+#   policy:
+#     off_topic: { enabled: false }
+#     pii: { action: refuse, severity: high }
+guardrails:
+  semantic_enabled: false
+  policy: {}

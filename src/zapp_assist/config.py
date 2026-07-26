@@ -13,6 +13,8 @@ import yaml
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from .contracts import GuardrailAction, Severity
+
 # `config.py` lives at src/zapp_assist/config.py → parents[2] is the repo root, regardless of cwd.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = REPO_ROOT / "config.yaml"
@@ -51,6 +53,21 @@ class Thresholds(BaseModel):
     reply_verify_min_chars: int = 15
 
 
+class RulePolicy(BaseModel):
+    """Per-rule policy override (003). Absent fields keep the rule's code defaults."""
+
+    enabled: bool = True
+    severity: Severity | None = None
+    action: GuardrailAction | None = None
+
+
+class GuardrailsConfig(BaseModel):
+    """Guardrail policy (003): toggle the semantic layer + per-rule overrides keyed by rule id."""
+
+    semantic_enabled: bool = False
+    policy: dict[str, RulePolicy] = Field(default_factory=dict)
+
+
 class AppConfig(BaseModel):
     """The fully-typed view of `config.yaml`."""
 
@@ -59,6 +76,7 @@ class AppConfig(BaseModel):
     thresholds: Thresholds = Field(default_factory=Thresholds)
     languages: LanguagesConfig
     pricing: dict[str, ModelPricing] = Field(default_factory=dict)
+    guardrails: GuardrailsConfig = Field(default_factory=GuardrailsConfig)
 
     def pricing_for(self, model: str) -> ModelPricing | None:
         return self.pricing.get(model)

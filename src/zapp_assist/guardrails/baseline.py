@@ -17,17 +17,26 @@ from ..contracts import GuardrailDecision
 from .registry import GuardrailContext, GuardrailRegistry
 
 _INJECTION = re.compile(
-    r"(ignore\s+(all\s+|your\s+|the\s+|previous\s+|above\s+)*instructions"
-    r"|disregard\s+(the\s+|all\s+)*(previous|above|prior)"
-    r"|(reveal|print|show|repeat|leak)\s+(me\s+)?(your\s+|the\s+)?(system\s+)?prompt"
-    r"|your\s+(system\s+)?instructions"
-    r"|you\s+are\s+now\b|jailbreak|developer\s+mode|dan\s+mode)",
+    r"(ignore\s+(all\s+|your\s+|the\s+|previous\s+|above\s+|prior\s+)*(instructions|rules|prompt)"
+    r"|disregard\s+(the\s+|all\s+|your\s+)*(previous|above|prior|instructions|rules)"
+    r"|forget\s+(all\s+|your\s+|the\s+|everything|previous)"
+    r"|override\s+(your\s+|the\s+)?(instructions|rules|prompt|settings)"
+    r"|(reveal|print|show|repeat|leak|expose|tell\s+me)\s+(me\s+)?(your\s+|the\s+)?"
+    r"(system\s+|initial\s+|original\s+)?(prompt|instructions|rules|guidelines)"
+    r"|your\s+(system\s+)?(prompt|instructions)"
+    r"|(what\s+(is|are)|repeat)\s+your\s+(system\s+)?(prompt|instructions|rules)"
+    r"|pretend\s+(to\s+be|you|that)|act\s+as\s+(a|an|if)|role[\s-]?play"
+    r"|you\s+are\s+now\b|new\s+instructions|bypass|jailbreak|developer\s+mode|dan\s+mode)",
     re.IGNORECASE,
 )
-_ABUSE = re.compile(r"\b(fuck|shit|asshole|bitch|idiot|moron)\b", re.IGNORECASE)
+_ABUSE = re.compile(
+    r"\b(fuck\w*|shit|asshole|bitch|idiot|moron|bastard|jackass|screw\s+you|shut\s+up|piss\s+off)\b",
+    re.IGNORECASE,
+)
 _OFFTOPIC = re.compile(
-    r"\b(poem|haiku|joke|riddle|recipe|weather|horoscope|stock\s+price|"
-    r"write\s+me\s+a|tell\s+me\s+a\s+story)\b",
+    r"\b(poem|haiku|sonnet|joke|riddle|recipe|weather|horoscope|stock\s+price|lyrics|"
+    r"write\s+(me\s+)?(a|an|some)|tell\s+me\s+a\s+(story|joke)|translate\s+this|"
+    r"capital\s+of|who\s+(is|was)\s+the\s+president|math\s+(homework|problem)|sing\s+(me\s+)?a)\b",
     re.IGNORECASE,
 )
 _EMAIL = re.compile(r"[\w.\-]+@[\w\-]+\.\w+")

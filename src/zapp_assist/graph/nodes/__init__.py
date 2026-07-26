@@ -9,7 +9,7 @@ from .detect_language import LangSignal, detect_language
 from .guardrail_in import guardrail_in
 from .guardrail_out import guardrail_out
 from .onboarding import OnboardingExtraction, onboarding
-from .placeholder import placeholder
+from .out_of_scope import out_of_scope
 from .route_intent import IntentSignal, route_intent
 from .support_rag import GroundedAnswer, support_rag
 from .verify_confidence import verify_confidence
@@ -22,7 +22,7 @@ __all__ = [
     "guardrail_in",
     "guardrail_out",
     "onboarding",
-    "placeholder",
+    "out_of_scope",
     "route_intent",
     "support_rag",
     "verify_confidence",

@@ -26,7 +26,7 @@ from .nodes import (
     guardrail_in,
     guardrail_out,
     onboarding,
-    placeholder,
+    out_of_scope,
     route_intent,
     support_rag,
     verify_confidence,
@@ -84,10 +84,10 @@ def _after_intent(state: GraphState) -> str:
         return "onboarding"
     if ts.intent == "action":
         return "action_plan"
-    if ts.intent == "clarify":
-        return "verify"
-    # out_of_scope → placeholder seam (US4)
-    return "placeholder"
+    if ts.intent == "out_of_scope":
+        return "out_of_scope"
+    # clarify (draft set in route_intent) or any unmapped intent → straight to verify/assemble.
+    return "verify"
 
 
 def build_graph(deps: Deps) -> Any:
@@ -104,7 +104,7 @@ def build_graph(deps: Deps) -> Any:
     graph.add_node("onboarding", _wrap("onboarding", onboarding, deps))
     graph.add_node("action_plan", _wrap("action_plan", action_plan, deps))
     graph.add_node("action_execute", _wrap("action_execute", action_execute, deps))
-    graph.add_node("placeholder", _wrap("placeholder", placeholder, deps))
+    graph.add_node("out_of_scope", _wrap("out_of_scope", out_of_scope, deps))
     graph.add_node("verify_confidence", _wrap("verify_confidence", verify_confidence, deps))
     graph.add_node("guardrail_out", _wrap("guardrail_out", guardrail_out, deps))
     # `assemble` always runs, even under degradation, so every path yields a valid contract.
@@ -123,7 +123,7 @@ def build_graph(deps: Deps) -> Any:
             "onboarding": "onboarding",
             "action_plan": "action_plan",
             "action_execute": "action_execute",
-            "placeholder": "placeholder",
+            "out_of_scope": "out_of_scope",
             "verify": "verify_confidence",
         },
     )
@@ -131,7 +131,7 @@ def build_graph(deps: Deps) -> Any:
     graph.add_edge("onboarding", "verify_confidence")
     graph.add_edge("action_plan", "verify_confidence")
     graph.add_edge("action_execute", "verify_confidence")
-    graph.add_edge("placeholder", "verify_confidence")
+    graph.add_edge("out_of_scope", "verify_confidence")
     graph.add_edge("verify_confidence", "guardrail_out")
     graph.add_edge("guardrail_out", "assemble")
     graph.add_edge("assemble", END)

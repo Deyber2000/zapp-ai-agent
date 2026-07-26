@@ -18,11 +18,6 @@ DECLINE_TEMPLATES = {
     "en": "I can't confirm that from our policies, so I've flagged it for a teammate to review.",
     "pt": "Não posso confirmar isso com nossas políticas, então sinalizei para um colega revisar.",
 }
-PLACEHOLDER_TEMPLATES = {
-    "es": "Esa función aún no está disponible, pero un compañero podrá ayudarte con eso.",
-    "en": "That feature isn't available yet, but a teammate will be able to help you with it.",
-    "pt": "Esse recurso ainda não está disponível, mas um colega poderá te ajudar com isso.",
-}
 CLARIFY_TEMPLATES = {
     "es": "¿Puedes aclarar exactamente qué necesitas para poder ayudarte mejor?",
     "en": "Could you clarify exactly what you need so I can help you better?",

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from .action_execute import action_execute
+from .action_plan import ActionRequest, action_plan
 from .assemble import assemble
 from .detect_language import LangSignal, detect_language
 from .guardrail_in import guardrail_in
@@ -13,6 +15,8 @@ from .support_rag import GroundedAnswer, support_rag
 from .verify_confidence import verify_confidence
 
 __all__ = [
+    "action_execute",
+    "action_plan",
     "assemble",
     "detect_language",
     "guardrail_in",
@@ -26,4 +30,5 @@ __all__ = [
     "IntentSignal",
     "GroundedAnswer",
     "OnboardingExtraction",
+    "ActionRequest",
 ]

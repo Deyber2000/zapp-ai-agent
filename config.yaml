@@ -14,6 +14,7 @@ node_effort:
   route_intent: low
   support_rag: medium
   onboarding: low
+  action_plan: low
   verify_confidence: medium
 
 thresholds:

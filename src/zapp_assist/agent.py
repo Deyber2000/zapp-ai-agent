@@ -23,6 +23,7 @@ from .llm.client import LLMClient
 from .memory.session_store import InMemorySessionStore, SessionStore
 from .obs.trace import Trace
 from .rag.store import KB_DIR, BM25Store
+from .tools.mock_backend import MockBackend, register_backend_tools
 from .tools.normalize import register_normalize_tools
 from .tools.registry import ToolRegistry
 
@@ -85,6 +86,7 @@ def _default_tools() -> ToolRegistry:
 
     registry = ToolRegistry()
     register_normalize_tools(registry)
+    register_backend_tools(registry, MockBackend())
     return registry
 
 

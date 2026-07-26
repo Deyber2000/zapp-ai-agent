@@ -19,6 +19,8 @@ from langgraph.graph import END, START, StateGraph
 from ..obs.trace import Span
 from .deps import Deps
 from .nodes import (
+    action_execute,
+    action_plan,
     assemble,
     detect_language,
     guardrail_in,
@@ -67,15 +69,24 @@ def _after_detect(state: GraphState) -> str:
 
 def _after_intent(state: GraphState) -> str:
     ts = state["ts"]
-    if ts.degraded or ts.intent is None:
+    if ts.degraded:
+        return "verify"
+    # A pending action awaiting confirmation makes THIS turn a confirmation response, regardless of
+    # how the router classified it — deterministic human-in-the-loop control (FR-012/013).
+    pending = ts.session.pending_action
+    if pending is not None and pending.status == "awaiting_confirmation":
+        return "action_execute"
+    if ts.intent is None:
         return "verify"
     if ts.intent == "support":
         return "support"
     if ts.intent == "onboarding":
         return "onboarding"
+    if ts.intent == "action":
+        return "action_plan"
     if ts.intent == "clarify":
         return "verify"
-    # action / out_of_scope → placeholder seam (US3/US4)
+    # out_of_scope → placeholder seam (US4)
     return "placeholder"
 
 
@@ -91,6 +102,8 @@ def build_graph(deps: Deps) -> Any:
     graph.add_node("route_intent", _wrap("route_intent", route_intent, deps))
     graph.add_node("support_rag", _wrap("support_rag", support_rag, deps))
     graph.add_node("onboarding", _wrap("onboarding", onboarding, deps))
+    graph.add_node("action_plan", _wrap("action_plan", action_plan, deps))
+    graph.add_node("action_execute", _wrap("action_execute", action_execute, deps))
     graph.add_node("placeholder", _wrap("placeholder", placeholder, deps))
     graph.add_node("verify_confidence", _wrap("verify_confidence", verify_confidence, deps))
     graph.add_node("guardrail_out", _wrap("guardrail_out", guardrail_out, deps))
@@ -108,12 +121,16 @@ def build_graph(deps: Deps) -> Any:
         {
             "support": "support_rag",
             "onboarding": "onboarding",
+            "action_plan": "action_plan",
+            "action_execute": "action_execute",
             "placeholder": "placeholder",
             "verify": "verify_confidence",
         },
     )
     graph.add_edge("support_rag", "verify_confidence")
     graph.add_edge("onboarding", "verify_confidence")
+    graph.add_edge("action_plan", "verify_confidence")
+    graph.add_edge("action_execute", "verify_confidence")
     graph.add_edge("placeholder", "verify_confidence")
     graph.add_edge("verify_confidence", "guardrail_out")
     graph.add_edge("guardrail_out", "assemble")

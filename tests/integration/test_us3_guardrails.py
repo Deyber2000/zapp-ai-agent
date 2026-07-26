@@ -69,6 +69,31 @@ def test_genuine_trigger_like_turn_is_not_blocked() -> None:
     assert result.guardrails.input == []  # no input guardrail fired → not a false block
 
 
+def test_semantic_layer_on_clean_turn_processes_normally_both_stages() -> None:
+    # Semantic ON but the classifier finds nothing on either stage → the turn is processed normally.
+    reply = "You can reschedule your delivery up to two hours before the window."
+
+    def responder(call: MockCall):  # type: ignore[no-untyped-def]
+        if call.schema is None:
+            return None
+        name = call.schema.__name__
+        if name == "LangSignal":
+            return call.schema(lang="en", confidence=0.9)
+        if name == "IntentSignal":
+            return call.schema(intent="support", confidence=0.9)
+        if name == "SafetyAssessment":
+            return call.schema(findings=[])  # clean on both input and output stages
+        if name == "GroundedAnswer":
+            return call.schema(reply=reply, citations=["delivery_reschedule_en"], grounded=True)
+        return None
+
+    agent = Agent.create(config=_cfg(semantic=True), llm=MockLLMClient(responder=responder))
+    result = agent.run_turn("gd-clean", "How late can I reschedule a delivery?")
+    assert result.guardrails.input == []
+    assert result.guardrails.output == []
+    assert result.reply == reply
+
+
 # ---- US2: output protection -------------------------------------------------------------------
 
 _Q = "How late can I reschedule a delivery?"

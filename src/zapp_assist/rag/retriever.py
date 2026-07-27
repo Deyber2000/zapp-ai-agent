@@ -13,11 +13,15 @@ and dense retrievers make no LLM calls and ignore it — only the advanced retri
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from ..config import AppConfig
 from ..llm.client import LLMClient, Usage
 from .store import KB_DIR, BM25Store, KnowledgeDocument
+
+if TYPE_CHECKING:
+    from ..config import RetrievalConfig
+    from .vector_store import VectorStore
 
 OnLLM = Callable[[Usage, float], None]
 
@@ -70,10 +74,31 @@ def _base_retriever(config: AppConfig, store: BM25Store, api_key: str | None) ->
     from .embedder import OpenAIEmbedder
 
     embedder = OpenAIEmbedder(api_key)  # `embedder: openai` is the only shipped backend today
-    dense = DenseRetriever(store.documents, embedder, rc.dense_min_similarity, use_hype=rc.hype)
+    dense = DenseRetriever(
+        store.documents,
+        embedder,
+        rc.dense_min_similarity,
+        use_hype=rc.hype,
+        store=_vector_store(rc),
+    )
     if rc.mode == "dense":
         return dense
 
     from .hybrid import HybridRetriever
 
     return HybridRetriever(store, dense, rc.rrf_k, rc.top_k)
+
+
+def _vector_store(rc: RetrievalConfig) -> VectorStore:
+    """Build the configured dense backend; fall back to NumPy if Qdrant is unavailable (offline)."""
+
+    from .vector_store import NumpyVectorStore
+
+    if rc.vector_store == "qdrant":
+        try:
+            from .vector_store import QdrantVectorStore
+
+            return QdrantVectorStore(url=rc.qdrant_url)
+        except Exception:
+            return NumpyVectorStore()  # qdrant-client not installed / failed → NumPy fallback
+    return NumpyVectorStore()

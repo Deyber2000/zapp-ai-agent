@@ -86,6 +86,8 @@ guardrails:
 retrieval:
   mode: hybrid          # bm25 | dense | hybrid
   embedder: openai      # OpenAI text-embedding-3-small (local sentence-transformers is a drop-in)
+  vector_store: qdrant  # numpy (in-memory, zero-dep) | qdrant (real vector DB, embedded/in-process)
+  qdrant_url: null      # null = embedded/in-process (no server); e.g. http://localhost:6333 = server
   top_k: 3
   rrf_k: 60             # Reciprocal Rank Fusion constant
   dense_min_similarity: 0.30   # cosine floor for a dense hit to count (keeps the decline gate)

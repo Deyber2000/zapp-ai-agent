@@ -60,6 +60,11 @@ class RetrievalConfig(BaseModel):
 
     mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
     embedder: Literal["openai"] = "openai"
+    # Dense vector backend: "numpy" (exact in-memory cosine, zero-dep) or "qdrant" (a real vector
+    # DB; embedded/in-process when qdrant_url is null, else a Qdrant server). Degrades to numpy if
+    # qdrant-client is missing. No embedding key → dense is off entirely (BM25 floor).
+    vector_store: Literal["numpy", "qdrant"] = "qdrant"
+    qdrant_url: str | None = None
     top_k: int = 3
     rrf_k: int = 60
     dense_min_similarity: float = 0.30

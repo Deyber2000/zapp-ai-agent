@@ -6,10 +6,11 @@ returned as a **single schema-valid JSON contract** — success, blocked, or deg
 
 > Take-home assessment for the **AI Agent Engineer** position at Zapp Global.
 
-**Status:** specs `001-support-agent` (US1–US5), `002-multilingual` (US1–US4), and `003-guardrails`
-(US1–US4) are fully implemented — the orchestrated agent core, verified in-language replies + language
-policy, and a layered, configurable guardrail system. Spec `004-evaluation` is next (see
-[Roadmap](#roadmap)).
+**Status:** all four required specs are implemented — `001-support-agent` (US1–US5),
+`002-multilingual` (US1–US4), `003-guardrails` (US1–US4), and `004-evaluation` (US1–US4): the
+orchestrated agent core, verified in-language replies + language policy, a layered configurable
+guardrail system, and a one-command CI eval suite with a committed report. `005-web-ui` (bonus) is
+next (see [Roadmap](#roadmap)).
 
 ---
 
@@ -40,8 +41,11 @@ cp .env.example .env          # then add ANTHROPIC_API_KEY (for live runs only)
 uv run zapp-assist turn --session demo --text "¿hasta cuándo puedo reprogramar mi entrega?"
 uv run zapp-assist chat        # interactive multi-turn (keeps active_lang + memory)
 
+# Evaluate the agent (no key needed) — one command → one report + CI exit code
+uv run zapp-eval              # writes evals/report.{json,md}; exits non-zero if any metric fails
+
 # Verify everything (no key needed)
-uv run pytest                 # 100 tests: unit + contract + integration (001 + 002 + 003)
+uv run pytest                 # 115 tests: unit + contract + integration (001–004)
 uv run ruff check . && uv run mypy src
 ```
 
@@ -170,9 +174,31 @@ each remaining concern is deepened as its own vertical slice:
   paraphrased/obfuscated attacks; a **configurable policy** (enable/disable rules, override
   severity/action, toggle the semantic layer — no code change); output redaction; and per-decision
   category/severity/action/layer signals for evaluation.
-- **`004-evaluation`** — one-command, CI-ready eval suite: task success, language fidelity,
+- **`004-evaluation`** ✅ *done* — one-command, CI-ready eval suite: task success, language fidelity,
   guardrail precision/recall, LLM-as-judge quality, latency & cost, with a pre-generated report.
 - **`005-web-ui`** — a thin Streamlit client over `Agent.run_turn` (chat + contract/trace panel).
+
+---
+
+## Evaluation (`004`)
+
+One command runs the agent over a labeled dataset and emits **one report** with per-metric pass/fail
+and a CI exit code:
+
+```bash
+uv run zapp-eval        # → evals/report.json + evals/report.md ; exit 0 all-pass, non-zero on any fail
+```
+
+- **Five metric families**, all threshold-gated from `evals/eval_config.yaml`: **task success** (per
+  capability), **language fidelity** (ES/EN/PT), **guardrail precision/recall** (labeled safe/unsafe),
+  **LLM-as-judge** quality (1–5 rubric), and **latency p50/p95 + cost/conversation**.
+- **Pure observer** — the suite (`evals/`) imports the agent and reads only its `TurnResult` contract +
+  per-turn `Trace`; it makes **0 changes to `src/zapp_assist/`** and the agent never imports it.
+- **Deterministic by default** — a per-case scripted model + a rule-based judge → the committed report
+  is reproducible with no key or network (CI-friendly). `--live` swaps in the real provider + an LLM
+  judge. Correctness metrics + pass/fail are byte-stable; only latency values are environment-dependent.
+- The **committed report** (`evals/report.md`) shows the current scores at a glance. On why this is an
+  in-repo suite rather than LangSmith/Langfuse, see the trade-off below.
 
 ---
 

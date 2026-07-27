@@ -29,21 +29,24 @@ dev = [
 
 [project.scripts]
 zapp-assist = "zapp_assist.cli:app"
+zapp-eval = "evals.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/zapp_assist"]
+packages = ["src/zapp_assist", "evals"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/zapp_assist/rag/kb" = "zapp_assist/rag/kb"
+"evals/dataset" = "evals/dataset"
+"evals/eval_config.yaml" = "evals/eval_config.yaml"
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["src", "tests"]
+src = ["src", "tests", "evals"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "W"]

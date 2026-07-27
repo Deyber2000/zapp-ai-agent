@@ -54,6 +54,19 @@ the counter is the minimal form of the same idea. (b) *Switch immediately on any
 lang* — rejected: thrashes on borrowed words/quotes (fails SC-004). (c) *Never switch (pure `001`
 lock)* — rejected: fails the deliberate-switch user story (US2).
 
+**Amendment — the "short" gate is word count, not character count**: the reset-on-short rule above is
+gated by `substantial = len(user_text.split()) >= language_switch_min_words` (default 2), not by a
+character floor. An earlier `language_switch_min_chars: 12` cut *across* the real boundary rather than
+along it. The class this second gate must catch — one the confidence floor structurally cannot — is
+**single-word borrowed tokens**: `ok` (en@0.84), `thanks` (en@0.95), `obrigado` (pt@0.84), `beleza`
+(pt@0.89) are lexically unmistakable in another language yet routinely typed by speakers of the other
+two; confidence measures distinctiveness, not switch intent, and those come apart exactly here. Every
+borrowed token is one word; every genuine short switch (`in english` @0.95 / 10c, `i need help` @0.93
+/ 11c) is two or more. The char floor blocked the latter while passing degenerate input
+(`aaaaaaaaaaaa`, 12c). `sí`/`no` never reach this gate — the confidence floor already rejects them (so
+the char floor's stated rationale never applied). Word count separates the two classes cleanly (13/13
+on the cases the confidence floor does not resolve); character count does not (7/13).
+
 ## R4 — Short-reply handling in verification (avoid false mismatches)
 
 **Decision**: Skip reply verification when the draft reply is shorter than `reply_verify_min_chars`
@@ -63,6 +76,10 @@ them as matching and record `reply_match=true` (unverified-short) in the trace.
 **Rationale**: `lingua` (like any detector) is unreliable on 1–2 word text; verifying it would produce
 false mismatches and needless corrections. The templates the agent emits are per-language by
 construction, so short canned replies are already in-language. Config-driven so it is tunable.
+
+**Scope note**: this is the *reply-side* short-text rule (verification), gated by
+`reply_verify_min_chars` (characters) — distinct from the *input-side* switch gate
+(`language_switch_min_words`, R3) and unaffected by the word-floor amendment there.
 
 **Alternatives considered**: (a) *Always verify* — rejected: false positives on short replies trigger
 pointless corrections. (b) *Word-count gate* — equivalent; a char threshold is simpler and language-
@@ -101,6 +118,7 @@ inconsistency.
 |---|---|---|
 | `language_switch_min_confidence` | 0.75 | deterministic confidence floor for a turn to count toward a switch |
 | `language_switch_turns` | 2 | consecutive confident turns in a new supported language required to switch |
+| `language_switch_min_words` | 2 | a switch requires ≥ this many words (single-word borrowed tokens can't switch) |
 | `reply_verify_min_chars` | 15 | replies shorter than this skip verification (treated as in-language) |
 
 `language_lock` (0.75, existing) remains the floor to first-lock `active_lang`. Supported languages and

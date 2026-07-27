@@ -7,9 +7,9 @@ Wraps any base `Retriever` and improves grounding in up to four config-gated sta
   *any* phrasing. Targets the lexical/vocabulary gap.
 - **HyDE** (Hypothetical Document Embeddings) — the LLM drafts a short plausible answer passage used
   as an extra query, so retrieval matches answer-shaped text.
-- **Self-Query** — the LLM classifies the question into one KB `category`, then the fused candidates
-  are filtered to that category (a metadata filter *derived from the query*). It never filters down
-  to nothing: an empty result falls back to the unfiltered ranking.
+- **Self-Query** — the LLM classifies the question into one KB `category`, then same-category
+  candidates get a fusion-score *boost* (a soft metadata signal from the query), lifting the right
+  domain without ever dropping a strongly-ranked off-category doc.
 - **Rerank** — the LLM reorders the top fused candidates by how well each *answers* the question,
   correcting lexical mis-rankings before the final trim to `top_k`.
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from .retriever import Retriever
 
 _CANDIDATES = 10  # per-variant retrieval depth / rerank pool (wider than top_k for fusion signal)
+_CATEGORY_BOOST = 1.5  # Self-Query: scale a same-category candidate's fusion score (soft boost)
 
 _FUSION_SYSTEM = (
     "You expand a customer's support question to improve retrieval. Produce {n} alternative "
@@ -132,10 +133,9 @@ class AdvancedRetriever:
             return []
 
         rrf = reciprocal_rank_fusion(ranked_lists, self._rrf_k)
-        ranked_ids = sorted(by_id, key=lambda i: rrf.get(i, 0.0), reverse=True)
-
         if self._self_query:
-            ranked_ids = self._filter_by_category(query, ranked_ids, by_id, on_llm)
+            rrf = self._category_boost(query, by_id, rrf, on_llm)
+        ranked_ids = sorted(by_id, key=lambda i: rrf.get(i, 0.0), reverse=True)
         if self._rerank:
             ranked_ids = self._rerank_candidates(query, ranked_ids, by_id, on_llm)
 
@@ -190,20 +190,26 @@ class AdvancedRetriever:
             return None
         return parsed.passage.strip()
 
-    def _filter_by_category(
+    def _category_boost(
         self,
         query: str,
-        ranked_ids: list[str],
         by_id: dict[str, tuple[KnowledgeDocument, float]],
+        rrf: dict[str, float],
         on_llm: Callable[..., None] | None,
-    ) -> list[str]:
-        """Keep only candidates in the LLM-predicted category; never narrow to an empty result."""
+    ) -> dict[str, float]:
+        """Soft Self-Query: scale up same-category candidates' fusion score instead of filtering.
+
+        A boost keeps recall — a strongly-ranked off-category doc can still win — while a correct
+        category prediction lifts the right domain. A wrong prediction can never drop a document.
+        """
 
         category = self._predict_category(query, on_llm)
         if not category:
-            return ranked_ids
-        matching = [i for i in ranked_ids if by_id[i][0].category.lower() == category]
-        return matching or ranked_ids
+            return rrf
+        return {
+            i: score * (_CATEGORY_BOOST if by_id[i][0].category.lower() == category else 1.0)
+            for i, score in rrf.items()
+        }
 
     def _predict_category(self, query: str, on_llm: Callable[..., None] | None) -> str:
         if not self._categories:

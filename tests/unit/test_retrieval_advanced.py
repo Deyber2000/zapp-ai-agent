@@ -159,30 +159,33 @@ class _SchemaLLM:
         return LLMResult(degraded=True, usage=Usage())
 
 
-def test_self_query_filters_candidates_by_category() -> None:
+def test_self_query_boosts_predicted_category_without_dropping() -> None:
     delivery = _doc("D", "reschedule delivery", [], category="delivery")
     payments = _doc("P", "refund to card", [], category="payments")
-    base = _RecordingBase({"reschedule": delivery, "refund": payments})
+    # Table order → base returns [P, D], so by fusion alone P would rank first.
+    base = _RecordingBase({"refund": payments, "reschedule": delivery})
     adv = AdvancedRetriever(
         base, _SchemaLLM(category="delivery"), model="m",  # type: ignore[arg-type]
         rag_fusion=False, n_queries=3, hyde=False,
         self_query=True, categories=["delivery", "payments"],
     )
-    ids = {doc.id for doc, _ in adv.search("reschedule or refund")}
-    assert ids == {"D"}  # the payments candidate is dropped by the predicted category
+    ids = [doc.id for doc, _ in adv.search("refund or reschedule")]
+    assert ids[0] == "D"  # boosted to the top by the predicted category
+    assert set(ids) == {"D", "P"}  # the off-category doc is NOT dropped (recall preserved)
 
 
-def test_self_query_degrades_to_no_filter_when_prediction_empty() -> None:
+def test_self_query_no_boost_when_prediction_empty() -> None:
     delivery = _doc("D", "reschedule delivery", [], category="delivery")
     payments = _doc("P", "refund to card", [], category="payments")
-    base = _RecordingBase({"reschedule": delivery, "refund": payments})
+    base = _RecordingBase({"refund": payments, "reschedule": delivery})
     adv = AdvancedRetriever(
         base, _SchemaLLM(category=""), model="m",  # type: ignore[arg-type]
         rag_fusion=False, n_queries=3, hyde=False,
         self_query=True, categories=["delivery", "payments"],
     )
-    ids = {doc.id for doc, _ in adv.search("reschedule or refund")}
-    assert ids == {"D", "P"}  # no confident category → no filter applied
+    ids = [doc.id for doc, _ in adv.search("refund or reschedule")]
+    assert ids[0] == "P"  # no confident category → fusion order unchanged
+    assert set(ids) == {"D", "P"}
 
 
 # ---- Rerank --------------------------------------------------------------------------------------

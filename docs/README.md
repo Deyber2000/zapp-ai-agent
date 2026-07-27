@@ -6,7 +6,8 @@ is**, including where it falls short.
 
 | Document | What it covers |
 | --- | --- |
-| **[Architecture in six layers](architecture.md)** | The full design walkthrough: ingestion, retrieval, orchestration, guardrails, observability, evaluation — with a diagram per layer, the trade-off ledger, and a ranked list of known gaps. |
+| **[System flow](system-flow.md)** | The system *across* its layers, in six diagrams: build vs serving vs verification time, one request through every component, artifact flow, the full degradation map, state lifetimes, and the module seam map. **Start here for the wide view.** |
+| **[Architecture in six layers](architecture.md)** | The system *down* through each layer: ingestion, retrieval, orchestration, guardrails, observability, evaluation — with a diagram per layer, the trade-off ledger, and a ranked list of known gaps. |
 | [Constitution](../.specify/memory/constitution.md) | The engineering principles ratified before any code was written; every `plan.md` is gated against them. |
 | [Feature specs](../specs/) | Per-feature `spec.md` / `plan.md` / `tasks.md` / `research.md` / `contracts/` for `001-support-agent`, `002-multilingual`, `003-guardrails`, `004-evaluation`. |
 

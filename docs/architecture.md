@@ -9,6 +9,10 @@ alternatives were considered and rejected, what it costs, and where it is still 
 edges. Every claim here is traceable to a file and line; where the code does less than the prose
 elsewhere in the repo implies, that is called out explicitly rather than smoothed over.
 
+For the wide view across layers — what runs at build vs serving vs verification time, one request
+through every component, the full degradation map, and the module seam map — see
+**[system-flow.md](system-flow.md)**.
+
 ---
 
 ## Table of contents

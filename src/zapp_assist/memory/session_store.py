@@ -1,11 +1,14 @@
 """Session state behind a swappable interface (Constitution I: Scalability).
 
-In-memory now; the `SessionStore` protocol lets this be replaced by Redis/DB with no node changes.
-`load`/`save` exchange deep copies so stored state is never mutated by an in-flight turn.
+In-memory (default, for tests/eval) and a JSON-file store (persistent, for the CLI so `turn` is
+multi-turn across processes); the `SessionStore` protocol lets either be swapped for Redis/DB with
+no node changes. `load`/`save` exchange deep copies so stored state is never mutated by a live turn.
 """
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Any, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
@@ -73,3 +76,35 @@ class InMemorySessionStore:
 
     def save(self, session: Session) -> None:
         self._data[session.session_id] = session.model_copy(deep=True)
+
+
+class FileSessionStore:
+    """Persistent session store: one JSON file per session under `directory`.
+
+    Conversations survive across processes, so `zapp-assist turn --session <id>` is multi-turn over
+    separate invocations. Same `SessionStore` seam as the in-memory default — the production swap
+    point for Redis/DB. Unknown or corrupt files start a fresh session. The id is sanitised before
+    use as a filename (no path traversal).
+    """
+
+    def __init__(self, directory: Path) -> None:
+        self._dir = Path(directory)
+        self._dir.mkdir(parents=True, exist_ok=True)
+
+    def _path(self, session_id: str) -> Path:
+        safe = re.sub(r"[^A-Za-z0-9_-]", "_", session_id) or "session"
+        return self._dir / f"{safe}.json"
+
+    def load(self, session_id: str) -> Session:
+        path = self._path(session_id)
+        if path.exists():
+            try:
+                return Session.model_validate_json(path.read_text(encoding="utf-8"))
+            except Exception:
+                pass  # corrupt/unreadable → start fresh rather than crash a turn
+        return Session(session_id=session_id)
+
+    def save(self, session: Session) -> None:
+        self._path(session.session_id).write_text(
+            session.model_dump_json(indent=2), encoding="utf-8"
+        )

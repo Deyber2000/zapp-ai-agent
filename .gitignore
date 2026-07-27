@@ -27,6 +27,9 @@ build/
 *.tsbuildinfo
 coverage/
 
+# ── Runtime state ────────────────────────────────────────
+.zapp_sessions/
+
 # ── Claude Code / Spec Kit local state ───────────────────
 .claude/settings.local.json
 .specify/feature.json

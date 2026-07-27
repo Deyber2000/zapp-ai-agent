@@ -389,7 +389,7 @@ flowchart TB
         I5["lang/detector.py<br/>the only 'from lingua'"]
         I6["rag/store.py<br/>the only 'from rank_bm25'"]
         I7["tools/normalize.py<br/>the only 'import phonenumbers'"]
-        I8["rag/dense.py<br/>the only 'import numpy'"]
+        I8["rag/vector_store.py<br/>the only 'import numpy' + 'qdrant_client'"]
     end
 
     TT --> EV

@@ -20,6 +20,8 @@ def _action_llm(
     action: str = "cancel_order",
     order_id: str | None = "A1001",
     new_time: str | None = None,
+    field: str | None = None,
+    value: str | None = None,
     lang: str = "en",
 ) -> MockLLMClient:
     def responder(call: MockCall):  # type: ignore[no-untyped-def]
@@ -31,7 +33,9 @@ def _action_llm(
         if name == "IntentSignal":
             return call.schema(intent="action", confidence=0.95)
         if name == "ActionRequest":
-            return call.schema(action=action, order_id=order_id, new_time=new_time)
+            return call.schema(
+                action=action, order_id=order_id, new_time=new_time, field=field, value=value
+            )
         return None
 
     return MockLLMClient(responder=responder)
@@ -117,3 +121,61 @@ def test_unknown_order_is_refused_not_faked() -> None:
     assert backend.state_changes == 0
     assert result.needs_review is True
     assert "Z9999" in result.reply
+
+
+# ---- domain-parity actions (payments / returns / tracking / account / membership) ----------------
+
+
+def test_refund_confirmed_marks_order_refunded() -> None:
+    agent, backend = _agent(_action_llm(action="process_refund", order_id="A1001"))
+    agent.run_turn("s-refund", "I want a refund for order A1001")
+    assert backend.state_changes == 0  # proposal only
+    agent.run_turn("s-refund", "yes")
+    assert backend.state_changes == 1
+    assert backend.lookup("A1001").status == "refunded"
+
+
+def test_start_return_confirmed() -> None:
+    agent, backend = _agent(_action_llm(action="start_return", order_id="A1002"))
+    agent.run_turn("s-return", "start a return for order A1002")
+    assert backend.state_changes == 0
+    agent.run_turn("s-return", "yes please")
+    assert backend.state_changes == 1
+    assert backend.lookup("A1002").status == "return_started"
+
+
+def test_track_order_reads_without_confirmation() -> None:
+    agent, backend = _agent(_action_llm(action="track_order", order_id="A1001"))
+    result = agent.run_turn("s-track", "where is my order A1001?")
+    assert backend.state_changes == 0
+    assert "A1001" in result.reply
+
+
+def test_cancel_membership_confirmed_needs_no_order() -> None:
+    agent, backend = _agent(_action_llm(action="cancel_membership", order_id=None))
+    r1 = agent.run_turn("s-mem", "cancel my Zapp+ membership")
+    assert "confirm" in r1.reply.lower()
+    assert backend.state_changes == 0 and backend.account.membership_active is True
+    agent.run_turn("s-mem", "yes")
+    assert backend.state_changes == 1
+    assert backend.account.membership_active is False
+
+
+def test_update_contact_confirmed_updates_account() -> None:
+    agent, backend = _agent(
+        _action_llm(action="update_contact", order_id=None, field="email", value="new@zapp.test")
+    )
+    agent.run_turn("s-contact", "change my email to new@zapp.test")
+    assert backend.state_changes == 0
+    agent.run_turn("s-contact", "yes")
+    assert backend.state_changes == 1
+    assert backend.account.email == "new@zapp.test"
+
+
+def test_update_contact_missing_value_asks_and_does_not_execute() -> None:
+    agent, backend = _agent(_action_llm(action="update_contact", order_id=None, field=None))
+    result = agent.run_turn("s-contact2", "I want to update my contact details")
+    assert backend.state_changes == 0
+    assert backend.account.membership_active is True  # nothing mutated
+    assert result.reply  # a clarifying ask was produced
+    assert backend.account.email == "user@example.com"

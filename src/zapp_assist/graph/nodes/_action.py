@@ -65,8 +65,42 @@ def summarize_action(action: str, params: dict, lang: str) -> str:
             "en": f"reschedule delivery for order {order} to {when}",
             "pt": f"reagendar a entrega do pedido {order} para {when}",
         }.get(lang, f"reschedule delivery for order {order} to {when}")
+    if action == "process_refund":
+        return {
+            "es": f"reembolsar el pedido {order}",
+            "en": f"refund order {order}",
+            "pt": f"reembolsar o pedido {order}",
+        }.get(lang, f"refund order {order}")
+    if action == "start_return":
+        return {
+            "es": f"iniciar la devolución del pedido {order}",
+            "en": f"start a return for order {order}",
+            "pt": f"iniciar a devolução do pedido {order}",
+        }.get(lang, f"start a return for order {order}")
+    if action == "update_contact":
+        raw = str(params.get("field", ""))
+        label = _CONTACT_LABEL.get(raw, {}).get(lang, raw)
+        value = params.get("value", "")
+        return {
+            "es": f"actualizar tu {label} a {value}",
+            "en": f"update your {label} to {value}",
+            "pt": f"atualizar seu {label} para {value}",
+        }.get(lang, f"update your {label} to {value}")
+    if action == "cancel_membership":
+        return {
+            "es": "cancelar tu membresía Zapp+",
+            "en": "cancel your Zapp+ membership",
+            "pt": "cancelar sua assinatura Zapp+",
+        }.get(lang, "cancel your Zapp+ membership")
     generic = {"es": "realizar esa acción", "en": "perform that action", "pt": "realizar essa ação"}
     return generic.get(lang, "perform that action")
+
+
+# Localized labels for the contact field being updated (used in the restatement).
+_CONTACT_LABEL = {
+    "email": {"es": "correo", "en": "email", "pt": "e-mail"},
+    "phone": {"es": "teléfono", "en": "phone", "pt": "telefone"},
+}
 
 
 # `{x}` placeholders are filled by the action nodes.
@@ -94,6 +128,16 @@ ACTION_LOOKUP = {
     "es": "El pedido {order} está «{status}» con entrega {window}.",
     "en": "Order {order} is “{status}” with delivery {window}.",
     "pt": "O pedido {order} está “{status}” com entrega {window}.",
+}
+ACTION_TRACK = {
+    "es": "El pedido {order}: {stage}. Entrega {window}.",
+    "en": "Order {order}: {stage}. Delivery {window}.",
+    "pt": "Pedido {order}: {stage}. Entrega {window}.",
+}
+ACTION_ASK_CONTACT = {
+    "es": "¿Qué dato quieres actualizar (correo o teléfono) y cuál es el nuevo valor?",
+    "en": "What would you like to update (email or phone), and what's the new value?",
+    "pt": "O que você quer atualizar (e-mail ou telefone) e qual é o novo valor?",
 }
 ACTION_CONFIRM = {
     "es": "Voy a {summary}. ¿Lo confirmas? (sí/no)",

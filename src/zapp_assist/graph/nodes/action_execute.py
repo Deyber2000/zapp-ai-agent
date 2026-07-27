@@ -12,7 +12,14 @@ action must not hinge on a model guess.
 from __future__ import annotations
 
 from ...memory.session_store import PendingAction
-from ...tools.mock_backend import CancelArgs, RescheduleArgs
+from ...tools.mock_backend import (
+    CancelArgs,
+    CancelMembershipArgs,
+    RefundArgs,
+    RescheduleArgs,
+    StartReturnArgs,
+    UpdateContactArgs,
+)
 from ...tools.registry import ToolResult
 from ..deps import Deps
 from ..state import TurnState
@@ -29,11 +36,18 @@ from ._util import add_span, now, tmpl
 
 def _execute(pending: PendingAction, deps: Deps) -> ToolResult:
     tool = deps.tools.get(pending.name)
+    p = pending.params
     if pending.name == "reschedule_delivery":
-        return tool.run(
-            RescheduleArgs(order_id=pending.params["order_id"], new_time=pending.params["new_time"])
-        )
-    return tool.run(CancelArgs(order_id=pending.params["order_id"]))
+        return tool.run(RescheduleArgs(order_id=p["order_id"], new_time=p["new_time"]))
+    if pending.name == "cancel_order":
+        return tool.run(CancelArgs(order_id=p["order_id"]))
+    if pending.name == "process_refund":
+        return tool.run(RefundArgs(order_id=p["order_id"]))
+    if pending.name == "start_return":
+        return tool.run(StartReturnArgs(order_id=p["order_id"]))
+    if pending.name == "update_contact":
+        return tool.run(UpdateContactArgs(field=p["field"], value=p["value"]))
+    return tool.run(CancelMembershipArgs())  # cancel_membership — no params
 
 
 def action_execute(state: TurnState, deps: Deps) -> TurnState:

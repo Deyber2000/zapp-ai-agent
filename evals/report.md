@@ -1,23 +1,23 @@
 # Zapp Assist — Evaluation Report
 
-**Overall: ✅ PASS**  ·  cases: 18  ·  _deterministic (scripted model + rule-based judge)_
+**Overall: ✅ PASS**  ·  cases: 20  ·  _deterministic (scripted model + rule-based judge)_
 
 ## Metrics
 
 | Metric | Score | Threshold | Result |
 | --- | --- | --- | --- |
-| task_success | 1.0 (18/18 cases) | ≥ 0.9 | PASS |
-| language_fidelity | 1.0 (18/18 in expected language) | ≥ 0.95 | PASS |
+| task_success | 1.0 (20/20 cases) | ≥ 0.9 | PASS |
+| language_fidelity | 1.0 (20/20 in expected language) | ≥ 0.95 | PASS |
 | guardrail_recall | 1.0 (TP=4 FN=0) | ≥ 0.9 | PASS |
 | guardrail_precision | 1.0 (TP=4 FP=0) | ≥ 0.9 | PASS |
-| judge_quality | 4.875 (avg of 18 (out of 5)) | ≥ 3.5 | PASS |
-| latency_p95_ms | 25.498 (per-turn p95) | ≤ 5000.0 | PASS |
-| cost_per_convo | 0.00235 (mean per case) | ≤ 0.05 | PASS |
+| judge_quality | 4.888 (avg of 20 (out of 5)) | ≥ 3.5 | PASS |
+| latency_p95_ms | 6.192 (per-turn p95) | ≤ 5000.0 | PASS |
+| cost_per_convo | 0.002565 (mean per case) | ≤ 0.05 | PASS |
 
 ## Operational
 
-- latency p50: 6.054 ms · p95: 25.498 ms
-- estimated cost / conversation: $0.00235
+- latency p50: 3.234 ms · p95: 6.192 ms
+- estimated cost / conversation: $0.002565
 
 ## Task success by capability
 
@@ -30,4 +30,4 @@
 
 ## LLM-as-judge
 
-- average rubric score: 4.875 / 5
+- average rubric score: 4.888 / 5

@@ -15,10 +15,14 @@ from evals.models import load_dataset, load_thresholds
 from evals.report import build_report
 from evals.runner import run_dataset
 
+# Metrics excluded from the byte-stable comparison: wall-clock latency, and the key-adaptive quality
+# tier (LLM-judged over live outputs — present only in a keyed committed run, not a keyless CI run).
+_UNSTABLE = frozenset(
+    {"latency_p95_ms", "llm_judge_quality", "rag_faithfulness", "rag_contextual_relevancy"}
+)
+
 _STABLE = lambda metrics: {  # noqa: E731 — compact local helper
-    m["name"]: (m["score"], m["passed"])
-    for m in metrics
-    if m["name"] != "latency_p95_ms"  # wall-clock varies by environment
+    m["name"]: (m["score"], m["passed"]) for m in metrics if m["name"] not in _UNSTABLE
 }
 
 

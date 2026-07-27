@@ -8,3 +8,11 @@ thresholds:
   judge_min: 3.5               # >= average LLM-as-judge score (out of 5)
   latency_p95_max_ms: 5000     # <= p95 per-turn latency
   cost_per_convo_max: 0.05     # <= mean estimated cost per conversation (USD)
+  # Quality tier (runs only when an API key is present; see evals/quality_tier.py). LLM-judged over
+  # the REAL agent's live outputs — excluded from the deterministic committed-report drift guard.
+  llm_judge_min: 3.5           # >= average LLM-as-judge score over live outputs (out of 5)
+  faithfulness_min: 0.7        # >= deepeval faithfulness of the reply to retrieved context [0,1]
+  # Retrieval-context relevancy is naturally low for a top-k retriever (~0.3-0.5: you fetch k docs,
+  # only ~1 is the bullseye), so this is a lenient SANITY FLOOR that catches broken retrieval — the
+  # real quality gates are faithfulness + the LLM-judge. deepeval flags the precision headroom here.
+  contextual_relevancy_min: 0.2

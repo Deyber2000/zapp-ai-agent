@@ -97,7 +97,14 @@ def render_markdown(report: EvalReport) -> str:
         lines.append(f"- {cap}: {score}")
     if report.judge:
         avg = round(sum(v.mean() for v in report.judge) / len(report.judge), 3)
-        lines += ["", "## LLM-as-judge", "", f"- average rubric score: {avg} / 5"]
+        lines += [
+            "",
+            "## Judge rubric (deterministic proxy)",
+            "",
+            f"- rule-based average: {avg} / 5 (helpfulness, groundedness, safety, language)",
+            "- the real LLM-as-judge (temperature 0) is `llm_judge_quality` in the metrics table,",
+            "  populated when a key is present (the key-adaptive quality tier).",
+        ]
     lines.append("")
     return "\n".join(lines)
 

@@ -106,6 +106,10 @@ class EvalThresholds(BaseModel):
     judge_min: float = 3.5  # out of 5
     latency_p95_max_ms: float = 5000.0
     cost_per_convo_max: float = 0.05
+    # Quality tier (key-adaptive; LLM-judged over live outputs — see quality_tier.py).
+    llm_judge_min: float = 3.5  # out of 5
+    faithfulness_min: float = 0.7  # deepeval, [0,1]
+    contextual_relevancy_min: float = 0.2  # deepeval [0,1] — lenient sanity floor (top-k)
 
 
 class EvalReport(BaseModel):

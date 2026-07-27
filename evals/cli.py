@@ -2,8 +2,13 @@
 
 One command: load the dataset + thresholds, run the agent over every case, compute metrics, write
 report.json + report.md, print a summary, and exit non-zero if any metric fails (CI gate).
-Deterministic by default (scripted per-case model + rule-based judge). `--live` is reserved for a
-real provider run (US3+; keyed).
+
+The **deterministic core** (scripted model + rule-based judge, bm25 retrieval) always runs, keyless
+and reproducible, so it can gate CI anywhere. When an API key is present *and* deepeval is
+installed, a **live LLM-judged quality tier** (LLM-as-judge + deepeval faithfulness / contextual
+relevancy over the real agent's outputs) is added automatically — no flag. The tier's metrics are
+reported alongside the core but excluded from the committed-report drift guard (LLM judgments aren't
+byte-reproducible).
 """
 
 from __future__ import annotations
@@ -12,7 +17,10 @@ from pathlib import Path
 
 import typer
 
-from .models import load_dataset, load_thresholds
+from zapp_assist.config import get_settings, load_config
+
+from .models import MetricResult, load_dataset, load_thresholds
+from .quality_tier import quality_tier_available, run_quality_tier
 from .report import build_report, render_markdown, write_report
 from .runner import run_dataset
 
@@ -24,16 +32,23 @@ def main(
     dataset: str | None = typer.Option(None, help="Dataset directory."),
     config: str | None = typer.Option(None, help="Thresholds YAML."),
     out: str | None = typer.Option(None, help="Report output directory."),
-    live: bool = typer.Option(False, "--live", help="Run against a real provider (needs a key)."),
 ) -> None:
     """Run the evaluation and write the report; exit non-zero on any threshold failure."""
 
     cases = load_dataset(dataset)
     thresholds = load_thresholds(config)
-    note = "live (real provider)" if live else "deterministic (scripted model + rule-based judge)"
+    records = run_dataset(cases)  # deterministic core — always runs, keyless
 
-    records = run_dataset(cases)
-    report = build_report(records, cases, thresholds, note=note)
+    extra: list[MetricResult] = []
+    note = "deterministic (scripted model + rule-based judge)"
+    settings = get_settings()
+    if quality_tier_available(settings):
+        typer.echo("Key present — running the live LLM-judged quality tier (deepeval)…")
+        extra = run_quality_tier(cases, load_config(), settings, thresholds)
+        if extra:
+            note = "deterministic core + live LLM-judged quality tier (deepeval)"
+
+    report = build_report(records, cases, thresholds, extra_metrics=extra, note=note)
     write_report(report, Path(out) if out else None)
 
     typer.echo(render_markdown(report))

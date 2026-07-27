@@ -27,6 +27,11 @@ dev = [
     "mypy>=1.10",
     "types-PyYAML>=6.0",
 ]
+# Optional: the LLM-judged quality tier (deepeval RAG/answer metrics). Not needed for the keyless
+# deterministic gate; install with `uv sync --extra eval` to run the live quality tier.
+eval = [
+    "deepeval>=4.1",
+]
 
 [project.scripts]
 zapp-assist = "zapp_assist.cli:app"

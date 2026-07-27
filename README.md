@@ -49,7 +49,7 @@ uv run zapp-ingest validate   # schema / language / duplication / coverage check
 uv run zapp-ingest build      # validate -> chunk -> enrich -> build; --refresh to enrich new docs live
 
 # Verify everything (no key needed)
-uv run pytest                 # 141 tests: unit + contract + integration (001–004)
+uv run pytest                 # 147 tests: unit + contract + integration (001–004)
 uv run ruff check . && uv run mypy src
 ```
 
@@ -194,16 +194,24 @@ and a CI exit code:
 uv run zapp-eval        # → evals/report.json + evals/report.md ; exit 0 all-pass, non-zero on any fail
 ```
 
-- **Five metric families**, all threshold-gated from `evals/eval_config.yaml`: **task success** (per
+- **Metric families**, all threshold-gated from `evals/eval_config.yaml`: **task success** (per
   capability), **language fidelity** (ES/EN/PT), **guardrail precision/recall** (labeled safe/unsafe),
   **LLM-as-judge** quality (1–5 rubric), and **latency p50/p95 + cost/conversation**.
 - **Pure observer** — the suite (`evals/`) imports the agent and reads only its `TurnResult` contract +
   per-turn `Trace`; it makes **0 changes to `src/zapp_assist/`** and the agent never imports it.
-- **Deterministic by default** — a per-case scripted model + a rule-based judge → the committed report
-  is reproducible with no key or network (CI-friendly). `--live` swaps in the real provider + an LLM
-  judge. Correctness metrics + pass/fail are byte-stable; only latency values are environment-dependent.
-- The **committed report** (`evals/report.md`) shows the current scores at a glance. On why this is an
-  in-repo suite rather than LangSmith/Langfuse, see the trade-off below.
+- **Two tiers, one command, key-adaptive** (no `--live` flag):
+  - A **deterministic core** always runs — a per-case scripted model + rule-based judge + bm25
+    retrieval → the committed report's correctness metrics and pass/fail are **byte-stable and
+    reproducible with no key or network**, so this tier is the CI gate anywhere (a drift-guard test
+    fails if a fresh keyless run diverges).
+  - When an **API key is present** (and `deepeval` is installed: `uv sync --extra eval`), a **live
+    LLM-judged quality tier** is added automatically: it re-runs the cases through the *real* agent
+    and scores the live replies with an **LLM-as-judge** (1–5 rubric) plus **deepeval** faithfulness
+    and contextual-relevancy over the actually-retrieved context. These are the genuinely LLM-judged
+    numbers the brief asks for; they're reported alongside the core but excluded from the byte-stable
+    drift guard (LLM judgments aren't reproducible — same treatment as wall-clock latency).
+- The **committed report** (`evals/report.md`) is generated from a keyed run, so it shows both tiers.
+  On why this is an in-repo suite rather than LangSmith/Langfuse, see the trade-off below.
 
 ---
 

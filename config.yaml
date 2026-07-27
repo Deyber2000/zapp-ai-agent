@@ -89,3 +89,8 @@ retrieval:
   top_k: 3
   rrf_k: 60             # Reciprocal Rank Fusion constant
   dense_min_similarity: 0.30   # cosine floor for a dense hit to count (keeps the decline gate)
+  hype: true            # index each doc's hypothetical questions on the dense side (offline-safe)
+  # LLM query expansion — opt-in; needs a key, degrades to the base retriever without one.
+  rag_fusion: false     # rewrite the query into N phrasings and RRF-fuse their retrievals
+  rag_fusion_queries: 3
+  hyde: false           # draft a hypothetical answer passage and use it as an extra query

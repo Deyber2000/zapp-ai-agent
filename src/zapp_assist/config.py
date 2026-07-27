@@ -63,6 +63,13 @@ class RetrievalConfig(BaseModel):
     top_k: int = 3
     rrf_k: int = 60
     dense_min_similarity: float = 0.30
+    # Index each doc's hypothetical questions on the dense side (HyPE). Offline-safe: without an
+    # embedding key the dense retriever is disabled anyway, so this has no effect on the CI path.
+    hype: bool = True
+    # LLM query expansion (opt-in; needs a key — degrades to the base retriever without one).
+    rag_fusion: bool = False  # rewrite the query into N phrasings, RRF-fuse their retrievals
+    rag_fusion_queries: int = 3
+    hyde: bool = False  # draft a hypothetical answer passage and use it as an extra query
 
 
 class RulePolicy(BaseModel):

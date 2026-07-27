@@ -56,7 +56,7 @@ class Agent:
             detector=detector or LinguaDetector(cfg.languages.supported, cfg.languages.fallback),
             guardrails=guardrails or default_registry(cfg, semantic),
             tools=tools or _default_tools(),
-            rag=rag or build_retriever(cfg, get_settings().openai_api_key),
+            rag=rag or build_retriever(cfg, resolved_llm, get_settings().openai_api_key),
         )
         return cls(deps, store or InMemorySessionStore())
 

@@ -2,5 +2,13 @@
   "id": "delivery_tracking_pt",
   "title": "Acompanhar seu pedido",
   "text": "Você pode acompanhar seu pedido em tempo real na aba Pedidos do app da Zapp. Cada pedido mostra a localização do entregador, a janela estimada de entrega e uma linha de status. O acompanhamento fica disponível quando o entregador aceita o pedido.",
-  "lang": "pt"
+  "lang": "pt",
+  "category": "delivery",
+  "topic": "tracking",
+  "questions": [
+    "Onde está meu pedido agora?",
+    "Como acompanho o entregador no mapa?",
+    "Por que ainda não vejo o rastreamento?",
+    "Como verifico o status da minha encomenda?"
+  ]
 }

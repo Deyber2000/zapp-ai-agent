@@ -2,5 +2,13 @@
   "id": "delivery_reschedule_es",
   "title": "Reprogramar una entrega",
   "text": "Puedes reprogramar tu entrega hasta 2 horas antes de la ventana estimada de entrega. Abre el pedido en la app de Zapp, toca Reprogramar y elige una nueva ventana. Reprogramar es gratis y no hay límite de veces antes del corte de 2 horas.",
-  "lang": "es"
+  "lang": "es",
+  "category": "delivery",
+  "topic": "reschedule",
+  "questions": [
+    "¿Puedo cambiar la hora de mi entrega?",
+    "¿Cómo muevo mi paquete a otro día?",
+    "¿Cuesta algo reprogramar un envío?",
+    "¿Hasta cuándo puedo cambiar la ventana de entrega?"
+  ]
 }

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 import unicodedata
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -36,12 +37,21 @@ _STOPWORDS = frozenset(
 
 
 class KnowledgeDocument(BaseModel):
-    """A unit of grounding cited in support answers (FR-005/006)."""
+    """A unit of grounding cited in support answers (FR-005/006).
+
+    `category`/`topic` are structured metadata (enable metadata-filtered retrieval); `questions`
+    are hypothetical questions the doc answers — indexed by the dense retriever (HyPE) so a user's
+    question matches a *question* rather than only the answer prose. All default empty so a bare
+    ``{id,title,text,lang}`` doc still validates.
+    """
 
     id: str
     title: str
     text: str
     lang: str
+    category: str = ""
+    topic: str = ""
+    questions: list[str] = []
 
 
 def _fold(text: str) -> str:
@@ -80,7 +90,13 @@ class BM25Store:
     def documents(self) -> list[KnowledgeDocument]:
         return self._docs
 
-    def search(self, query: str, top_k: int = 3) -> list[tuple[KnowledgeDocument, float]]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 3,
+        *,
+        on_llm: Callable[..., None] | None = None,  # seam-only; BM25 makes no LLM calls
+    ) -> list[tuple[KnowledgeDocument, float]]:
         if self._bm25 is None or not query.strip():
             return []
         scores = self._bm25.get_scores(tokenize(query))

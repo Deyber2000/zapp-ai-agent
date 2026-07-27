@@ -59,7 +59,8 @@ def support_rag(state: TurnState, deps: Deps) -> TurnState:
     cfg = deps.config
     active = state.language.active_lang if state.language else cfg.languages.fallback
 
-    hits = deps.rag.search(state.user_text) if deps.rag else []
+    # `on_llm` folds any query-expansion (RAG-Fusion / HyDE) token cost into this turn's trace.
+    hits = deps.rag.search(state.user_text, on_llm=state.trace.record_llm) if deps.rag else []
     if not hits:
         state.retrieval = []
         return _decline(state, active, 0.2, start, {"grounded": False, "hits": 0})

@@ -12,7 +12,7 @@ stays on a BM25-comparable scale (no change needed in the answer node).
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 
 from .dense import DenseRetriever
 from .store import BM25Store, KnowledgeDocument
@@ -46,7 +46,13 @@ class HybridRetriever:
         self._k = rrf_k
         self._top_k = top_k
 
-    def search(self, query: str, top_k: int | None = None) -> list[tuple[KnowledgeDocument, float]]:
+    def search(
+        self,
+        query: str,
+        top_k: int | None = None,
+        *,
+        on_llm: Callable[..., None] | None = None,  # seam-only; hybrid makes no LLM calls
+    ) -> list[tuple[KnowledgeDocument, float]]:
         limit = top_k or self._top_k
         sparse_hits = self._sparse.search(query, top_k=_CANDIDATES)
         dense_hits = self._dense.search(query, top_k=_CANDIDATES)

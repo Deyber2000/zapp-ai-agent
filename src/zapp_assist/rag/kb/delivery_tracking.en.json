@@ -2,5 +2,13 @@
   "id": "delivery_tracking_en",
   "title": "Tracking your order",
   "text": "You can track your order in real time from the Orders tab in the Zapp app. Each order shows the courier location, the estimated delivery window, and a status timeline. Tracking becomes available once the courier accepts the order.",
-  "lang": "en"
+  "lang": "en",
+  "category": "delivery",
+  "topic": "tracking",
+  "questions": [
+    "Where is my order right now?",
+    "How do I follow my courier on the map?",
+    "Why can't I see tracking yet?",
+    "How do I check the status of my package?"
+  ]
 }

@@ -129,7 +129,7 @@ src/zapp_assist/
   graph/              # build.py (LangGraph) + state.py + nodes/*
   guardrails/         # registry + baseline rules
   lang/               # lingua detector + fuse()
-  rag/                # hybrid retrieval (BM25 + dense/embeddings, RRF) + curated KB (12 ES/EN/PT docs)
+  rag/                # hybrid retrieval (BM25 + dense, RRF) + HyPE/HyDE/RAG-Fusion + KB (12 ES/EN/PT)
   tools/              # registry + normalize (phonenumbers) + mock_backend
   memory/             # session store (swappable interface)
   obs/                # Trace / Span / cost accounting
@@ -214,13 +214,19 @@ correctness-critical paths (phone normalization, language detection, action conf
 
 **Other trade-offs:**
 
-- **Hybrid retrieval (BM25 + dense)** — retrieval fuses lexical **BM25** with **dense embeddings**
-  (OpenAI `text-embedding-3-small`, behind an `Embedder` seam mirroring the LLM adapter) via
-  **Reciprocal Rank Fusion**, so semantic paraphrases the lexical index misses are still recalled
-  (verified live: a query with zero lexical overlap returned `[]` from BM25 but the right docs from
-  the dense side). It **degrades to BM25** when no embedding key is present, keeping the tests, the
-  eval, and CI offline and deterministic. A local sentence-transformers embedder is a documented
-  drop-in behind the same seam.
+- **Hybrid retrieval (BM25 + dense), with advanced expansion** — retrieval fuses lexical **BM25**
+  with **dense embeddings** (OpenAI `text-embedding-3-small`, behind an `Embedder` seam mirroring the
+  LLM adapter) via **Reciprocal Rank Fusion**, so semantic paraphrases the lexical index misses are
+  still recalled. Three advanced techniques layer on top, each config-gated and each degrading safely:
+  **HyPE** (index the *hypothetical questions* each KB doc answers, so a user question matches a
+  question — always-on, precomputed, offline-safe), and opt-in **HyDE** (embed a drafted hypothetical
+  answer) + **RAG-Fusion** (RRF-fuse retrievals of N LLM-generated query rephrasings). Verified live:
+  for a Spanish paraphrase BM25 returned `[]` while hybrid+HyPE recalled the right doc at higher
+  confidence, and HyDE+RAG-Fusion lifted it further. The whole stack **degrades to BM25** with no key,
+  keeping the tests, the eval, and CI offline and deterministic. Techniques deliberately *not* used
+  (over-engineering for a 12-doc single-topic KB): parent-document retrieval, query decomposition, a
+  standalone semantic router (intent routing already exists). A local sentence-transformers embedder
+  is a documented drop-in behind the same seam.
 - **Mock backend** — order/account actions run against a deterministic in-memory backend (a stated
   scope decision, not a hidden gap). HITL/exactly-once semantics are real; the persistence is mocked.
 - **In-memory session store** — behind a `SessionStore` protocol, swappable for Redis/DB with no

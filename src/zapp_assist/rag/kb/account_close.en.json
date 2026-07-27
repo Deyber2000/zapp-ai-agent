@@ -2,5 +2,13 @@
   "id": "account_close_en",
   "title": "Closing your account",
   "text": "You can close your Zapp account from Settings, Account, Close account. Closing is permanent after a 14-day grace period, during which you can reactivate by signing in. Any active orders must be completed or cancelled before the account can be closed.",
-  "lang": "en"
+  "lang": "en",
+  "category": "account",
+  "topic": "close",
+  "questions": [
+    "How do I delete my Zapp account?",
+    "Can I cancel my account permanently?",
+    "Is closing my account reversible?",
+    "What happens to my open orders if I close my account?"
+  ]
 }

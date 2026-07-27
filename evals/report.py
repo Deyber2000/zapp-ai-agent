@@ -10,6 +10,9 @@ from pathlib import Path
 
 from .metrics import (
     cost_per_conversation,
+    guardrail_precision,
+    guardrail_recall,
+    language_fidelity,
     latency_percentiles,
     task_success,
     task_success_by_capability,
@@ -27,7 +30,13 @@ def build_report(
     verdicts: list[JudgeVerdict] | None = None,
     note: str = "deterministic (scripted model + rule-based judge)",
 ) -> EvalReport:
-    metrics = [task_success(records, cases, thresholds), *(extra_metrics or [])]
+    metrics = [
+        task_success(records, cases, thresholds),
+        language_fidelity(records, cases, thresholds),
+        guardrail_recall(records, cases, thresholds),
+        guardrail_precision(records, cases, thresholds),
+        *(extra_metrics or []),
+    ]
     p50, p95 = latency_percentiles(records)
     overall = all(m.passed for m in metrics if m.applicable)
     return EvalReport(

@@ -1,0 +1,21 @@
+[
+  {
+    "id": "onboarding-mx",
+    "capability": "onboarding",
+    "turns": ["Hi, I'm Ana Torres and my phone is 55 1234 5678."],
+    "script": {
+      "lang": "en",
+      "intent": "onboarding",
+      "full_name": "Ana Torres",
+      "phone_raw": "55 1234 5678",
+      "region_hint": "MX",
+      "phone_normalized": "+525512345678"
+    },
+    "expected": {
+      "needs_review": false,
+      "lang": "en",
+      "final_normalized_text": "+525512345678",
+      "detected_country": "MX"
+    }
+  }
+]

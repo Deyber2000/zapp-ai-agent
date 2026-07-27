@@ -1,0 +1,22 @@
+[
+  {
+    "id": "support-pt-grounded",
+    "capability": "multilingual",
+    "turns": ["Até quando posso reagendar minha entrega?"],
+    "script": {
+      "lang": "pt",
+      "intent": "support",
+      "reply": "Você pode reagendar sua entrega até 2 horas antes da janela estimada.",
+      "grounded": true,
+      "citations": ["delivery_reschedule_pt"]
+    },
+    "expected": {"needs_review": false, "lang": "pt", "reply_contains": "reagendar"}
+  },
+  {
+    "id": "unsupported-fr",
+    "capability": "multilingual",
+    "turns": ["Bonjour, je voudrais reprogrammer ma livraison pour demain matin s'il vous plaît."],
+    "script": {"lang": "en", "intent": "support"},
+    "expected": {"needs_review": true, "lang": "en"}
+  }
+]

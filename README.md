@@ -237,17 +237,21 @@ correctness-critical paths (phone normalization, language detection, action conf
   ES/EN/PT, each doc tagged with `category`/`topic` metadata.
 - **Hybrid retrieval + advanced techniques** — retrieval fuses lexical **BM25** with **dense
   embeddings** (OpenAI `text-embedding-3-small`, behind an `Embedder` seam mirroring the LLM adapter)
-  via **Reciprocal Rank Fusion**. Five techniques layer on top, each independently config-gated and
-  each degrading safely: **HyPE** (index the *hypothetical questions* each doc answers, so a user
-  question matches a *question* — always-on, precomputed, offline-safe), **HyDE** (embed a drafted
-  hypothetical answer), **RAG-Fusion** (RRF-fuse retrievals of N LLM-generated rephrasings),
-  **Self-Query** (the LLM classifies the query into a `category` and filters candidates by that
-  metadata), and an **LLM reranker** (reorder the fused candidates by answer relevance). Verified
-  live: for a Spanish paraphrase BM25 returned `[]` while hybrid+HyPE recalled the right doc at higher
-  confidence, and HyDE+RAG-Fusion lifted it further. The whole stack **degrades to BM25** with no key,
-  keeping the tests, the eval, and CI offline and deterministic. Not adopted at this corpus size:
-  parent-document retrieval and query decomposition (the retriever seam leaves them open); a local
-  sentence-transformers embedder is a documented drop-in behind the same seam.
+  via **Reciprocal Rank Fusion**. Dense vectors live in a config-selectable `VectorStore`: **Qdrant**
+  in **embedded/in-process mode** by default (a real vector DB — no server; a Qdrant server is a
+  one-line `qdrant_url` flip, with server-side payload filtering as the scale path), or exact
+  in-memory NumPy — degrading to NumPy if `qdrant-client` is absent. Five techniques layer on top,
+  each independently config-gated and each degrading safely: **HyPE** (index the *hypothetical
+  questions* each doc answers, so a user question matches a *question* — always-on, precomputed,
+  offline-safe), **HyDE** (embed a drafted hypothetical answer), **RAG-Fusion** (RRF-fuse retrievals
+  of N LLM-generated rephrasings), **Self-Query** (the LLM classifies the query into a `category` and
+  *boosts* same-category candidates — a soft signal that never drops a strong off-category hit), and
+  an **LLM reranker** (reorder the fused candidates by answer relevance). Verified live: for a Spanish
+  paraphrase BM25 returned `[]` while hybrid+HyPE recalled the right doc at higher confidence, and
+  HyDE+RAG-Fusion lifted it further. The whole stack **degrades to BM25** with no key, keeping the
+  tests, the eval, and CI offline and deterministic. Not adopted at this corpus size: parent-document
+  retrieval and query decomposition (the retriever seam leaves them open); the `Embedder` seam makes
+  a local sentence-transformers model a drop-in.
 - **Mock backend** — order/account actions run against a deterministic in-memory backend (a stated
   scope decision, not a hidden gap). HITL/exactly-once semantics are real; the persistence is mocked.
 - **In-memory session store** — behind a `SessionStore` protocol, swappable for Redis/DB with no
@@ -297,6 +301,8 @@ This project was built with an AI copilot (expected by the brief). Notable calls
   400; determinism is achieved structurally instead.
 - **Retrieval depth was scoped deliberately** — a hybrid + advanced-RAG stack (BM25 + dense via RRF;
   HyPE, HyDE, RAG-Fusion, Self-Query, rerank) over a reproducibly-ingested, metadata-tagged KB, with
-  **everything degrading to a deterministic BM25 floor** so CI stays keyless. Heavier options — a
-  hosted vector DB, parent-document retrieval, query decomposition — were left out as unwarranted at
-  this corpus size; the `Embedder`/`Retriever` seams leave them a drop-in, not a rewrite.
+  **everything degrading to a deterministic BM25 floor** so CI stays keyless. Dense vectors are stored
+  in **Qdrant in embedded mode** — a real vector DB with no service to run — so the *store* is
+  production-shaped while a **hosted Qdrant server is a one-line `qdrant_url` flip** for scale.
+  Parent-document retrieval and query decomposition are documented next steps, not rewrites (the
+  `Embedder` / `Retriever` / `VectorStore` seams keep them drop-in).

@@ -142,7 +142,9 @@ def apply_switch_policy(
       * ``pending_lang`` / ``pending_count`` — the sustained-switch accumulator after this turn.
       * ``switched`` — ``True`` iff a sustained switch changed the locked language this turn.
 
-    Not-yet-locked: lock on the first confident supported detection (parity with 001). Locked: a
+    Not-yet-locked: lock on the first confident supported detection (parity with 001) — where a high
+    absolute confidence locks even a one-word message, but the weaker margin rescue locks only when
+    the message is substantial, so a lone ambiguous token never locks the session. Locked: a
     matching / weak / short / unsupported turn keeps the lock and resets the accumulator; a
     confident, substantial turn in a *different* supported language accumulates, and switches at
     ``switch_turns`` consecutive such turns — so a single foreign phrase never flips the language.
@@ -156,7 +158,11 @@ def apply_switch_policy(
         return confidence >= threshold or margin >= min_margin
 
     if active_lang is None:
-        if detected in supported and confident(lock_threshold):
+        # First lock: a high ABSOLUTE confidence locks even a one-word message (parity with 001),
+        # but the margin rescue — which over-fires on short ambiguous tokens ("vale"/"sim"/"ya") —
+        # locks only on a substantial message, so a single ambiguous token never locks the session.
+        strong = confidence >= lock_threshold
+        if detected in supported and (strong or (substantial and margin >= min_margin)):
             return detected, None, 0, False  # first lock (not a "switch")
         return None, None, 0, False  # stay unlocked; caller uses fallback
 

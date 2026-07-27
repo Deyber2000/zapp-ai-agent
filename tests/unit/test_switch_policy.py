@@ -97,3 +97,15 @@ def test_no_lock_when_both_confidence_and_margin_are_low() -> None:
 def test_margin_enables_a_switch_below_the_absolute_floor() -> None:
     # A 2nd margin-confident es→pt turn completes a switch the absolute floor would stall.
     assert _call("es", "pt", conf=0.70, margin=0.40, pend="pt", count=1) == ("pt", None, 0, True)
+
+
+def test_margin_first_lock_requires_a_substantial_message() -> None:
+    # A lone ambiguous token (e.g. "vale"/"sim") can clear the margin but must NOT lock the whole
+    # session on its own — the margin rescue applies only to substantial (>= min_words) messages.
+    assert _call(None, "es", conf=0.672, margin=0.46, substantial=False) == (None, None, 0, False)
+
+
+def test_high_absolute_confidence_first_lock_survives_a_short_message() -> None:
+    # A genuinely high-confidence one-word message still locks (parity with 001); only the weaker
+    # margin path is gated by substantiality.
+    assert _call(None, "es", conf=0.90, margin=0.0, substantial=False) == ("es", None, 0, False)

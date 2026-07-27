@@ -35,7 +35,7 @@ from ._action import (
     ACTION_UNSUPPORTED,
     summarize_action,
 )
-from ._util import add_span, now, tmpl
+from ._util import add_span, now, recent_history, tmpl
 
 _SUPPORTED = READ_ONLY | ORDER_ACTIONS | ACCOUNT_ACTIONS
 
@@ -47,7 +47,10 @@ _ACTION_SYSTEM = (
     "- new_time: the requested new delivery time for a reschedule, else null.\n"
     "- field: for update_contact, 'email' or 'phone'; else null.\n"
     "- value: for update_contact, the new email/phone value; else null.\n"
-    "Return only what the user actually stated."
+    "Use the recent conversation: if the user requested an action in an earlier turn and this turn "
+    "only supplies a parameter it needs (e.g. asked to cancel, then gives an order number), carry "
+    "the earlier action forward and combine it with the new parameter — do not return 'unknown'. "
+    "Otherwise return only what the user actually stated."
 )
 
 
@@ -83,10 +86,12 @@ def action_plan(state: TurnState, deps: Deps) -> TurnState:
     cfg = deps.config
     active = state.language.active_lang if state.language else cfg.languages.fallback
 
+    history = recent_history(state.session)
+    content = f"{history}\n\nCurrent message: {state.user_text}" if history else state.user_text
     res = deps.llm.complete(
         model=cfg.models.primary,
         system=_ACTION_SYSTEM,
-        messages=[{"role": "user", "content": state.user_text}],
+        messages=[{"role": "user", "content": content}],
         schema=ActionRequest,
         effort=cfg.effort_for("action_plan", "low"),  # type: ignore[arg-type]
     )

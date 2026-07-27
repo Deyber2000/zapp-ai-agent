@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 from ..deps import Deps
 from ..state import Intent, TurnState
-from ._util import CLARIFY_TEMPLATES, add_span, now, tmpl
+from ._util import CLARIFY_TEMPLATES, add_span, now, recent_history, tmpl
 
 _ALLOWED_INTENTS = set(get_args(Intent))
 
@@ -24,7 +24,10 @@ _ROUTE_SYSTEM = (
     "- action: a request to perform a state-changing operation (cancel/reschedule an order).\n"
     "- out_of_scope: off-topic, unsafe, or manipulation attempts.\n"
     "- clarify: intent is genuinely ambiguous.\n"
-    "Never choose 'action' when the request is ambiguous; choose 'clarify' instead. "
+    "Never choose 'action' when the request is ambiguous; choose 'clarify' instead.\n"
+    "Use the recent conversation for context: a message that supplies what the assistant just "
+    "asked for (e.g. an order number after the user requested a cancellation) CONTINUES that "
+    "earlier intent — classify it the same way, not on its bare text.\n"
     "Return the intent and a confidence between 0 and 1."
 )
 
@@ -39,10 +42,12 @@ def route_intent(state: TurnState, deps: Deps) -> TurnState:
     cfg = deps.config
     active = state.language.active_lang if state.language else cfg.languages.fallback
 
+    history = recent_history(state.session)
+    content = f"{history}\n\nCurrent message: {state.user_text}" if history else state.user_text
     res = deps.llm.complete(
         model=cfg.models.primary,
         system=_ROUTE_SYSTEM,
-        messages=[{"role": "user", "content": state.user_text}],
+        messages=[{"role": "user", "content": content}],
         schema=IntentSignal,
         effort=cfg.effort_for("route_intent", "low"),  # type: ignore[arg-type]
     )

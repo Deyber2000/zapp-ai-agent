@@ -8,6 +8,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
+from ...memory.session_store import Session
 from ...obs.trace import Span, Trace
 
 # Per-language canned replies. Each is a full, valid sentence in the target language so the contract
@@ -101,3 +102,22 @@ def add_span(
 
 def last_user_text(user_text: str) -> str:
     return user_text or ""
+
+
+def recent_history(session: Session, limit: int = 3) -> str:
+    """Compact recent-turn context for history-aware routing/action (oldest to newest, or '').
+
+    Each line is the user's message + how it was routed + a short assistant reply, so a follow-up
+    that supplies what the assistant just asked for (e.g. an order number after a cancel request) is
+    understood as continuing that thread rather than being classified on its bare text.
+    """
+
+    turns = session.history[-limit:]
+    if not turns:
+        return ""
+    lines = []
+    for turn in turns:
+        intent = f" [{turn.intent}]" if turn.intent else ""
+        reply = turn.reply if len(turn.reply) <= 120 else turn.reply[:117] + "..."
+        lines.append(f"- user: {turn.user_text}{intent}\n  assistant: {reply}")
+    return "Recent conversation (oldest to newest):\n" + "\n".join(lines)

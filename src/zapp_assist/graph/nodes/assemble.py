@@ -8,6 +8,7 @@ was produced, it substitutes `TurnResult.safe_fallback(...)` (a guaranteed-valid
 from __future__ import annotations
 
 from ...contracts import Guardrails, TurnResult
+from ...memory.session_store import TurnRef
 from ..deps import Deps
 from ..state import TurnState
 from ._util import (
@@ -18,9 +19,22 @@ from ._util import (
     tmpl,
 )
 
+_HISTORY_LIMIT = 10  # bounded recent turns kept on the session for multi-turn coherence (FR-015)
+
 
 def _clamp(x: float) -> float:
     return max(0.0, min(1.0, float(x)))
+
+
+def _record_history(state: TurnState) -> TurnState:
+    """Append this turn to the session's bounded history (so later turns have context)."""
+
+    if state.result is not None:
+        state.session.history.append(
+            TurnRef(user_text=state.user_text, reply=state.result.reply, intent=state.intent)
+        )
+        del state.session.history[:-_HISTORY_LIMIT]  # keep only the most recent turns
+    return state
 
 
 def assemble(state: TurnState, deps: Deps) -> TurnState:
@@ -48,7 +62,7 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
                 guardrails=guardrails,
             )
             add_span(state.trace, "assemble", start, attrs={"fallback": True})
-            return state
+            return _record_history(state)
 
         # A cleanly handled guardrail block is high-confidence and not degraded.
         if state.confidence is not None:
@@ -86,4 +100,4 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
         add_span(
             state.trace, "assemble", start, status="error", attrs={"error": type(exc).__name__}
         )
-    return state
+    return _record_history(state)

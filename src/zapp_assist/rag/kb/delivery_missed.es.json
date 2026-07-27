@@ -1,0 +1,14 @@
+{
+  "id": "delivery_missed_es",
+  "title": "Entrega no realizada",
+  "text": "Si no estás cuando llega el repartidor, espera unos minutos y luego sigue con su ruta. Puedes solicitar una reentrega el mismo día o reprogramarla desde la pantalla del pedido en la app de Zapp. Tras dos intentos fallidos, el pedido se devuelve y se reembolsa a tu método de pago original.",
+  "lang": "es",
+  "category": "delivery",
+  "topic": "missed",
+  "questions": [
+    "¿Qué pasa si no estoy en casa cuando llega el repartidor?",
+    "¿Puedo pedir que me entreguen el paquete de nuevo el mismo día?",
+    "¿Qué hago si el repartidor intenta entregarme el pedido pero no estoy disponible?",
+    "¿Qué ocurre si no hay nadie para recibir el envío tras dos intentos?"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "orders_missing_en",
+  "title": "Missing or damaged items",
+  "text": "If an item is missing or arrives damaged, report it within 48 hours. Open Orders, select the order, tap Help, and choose 'Report a problem'. Eligible items are refunded to your original payment method or Zapp wallet after a quick review.",
+  "lang": "en",
+  "category": "orders",
+  "topic": "missing_items",
+  "questions": [
+    "What should I do if something is missing from my order?",
+    "How can I report a damaged item from my shipment?",
+    "Is there a time limit to report missing items from my parcel?",
+    "Will I get a refund for items that didn't arrive or were damaged?"
+  ]
+}

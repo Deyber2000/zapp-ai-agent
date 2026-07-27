@@ -1,0 +1,14 @@
+{
+  "id": "membership_benefits_es",
+  "title": "Beneficios de la membresía Zapp+",
+  "text": "Zapp+ es nuestra membresía: envío gratis en pedidos por encima del mínimo, franjas de entrega prioritarias y descuentos exclusivos para miembros. Se cobra de forma mensual o anual, y puedes gestionarla cuando quieras en Ajustes > Membresía.",
+  "lang": "es",
+  "category": "membership",
+  "topic": "benefits",
+  "questions": [
+    "¿Qué beneficios obtengo al suscribirme a Zapp+?",
+    "¿Cuáles son las ventajas de ser miembro de Zapp+?",
+    "¿Qué descuentos ofrece la membresía Zapp+?",
+    "¿Cómo puedo administrar mi suscripción a Zapp+?"
+  ]
+}

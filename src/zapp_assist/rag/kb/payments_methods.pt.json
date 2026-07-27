@@ -1,0 +1,14 @@
+{
+  "id": "payments_methods_pt",
+  "title": "Formas de pagamento na Zapp",
+  "text": "A Zapp aceita cartões de crédito e débito, o saldo da sua carteira Zapp e uma conta bancária vinculada. Para adicionar ou remover uma forma de pagamento, acesse Configurações > Pagamentos no app, onde também dá para definir uma como padrão. Os cartões são tokenizados com segurança e a Zapp nunca armazena o número completo do seu cartão.",
+  "lang": "pt",
+  "category": "payments",
+  "topic": "methods",
+  "questions": [
+    "Quais formas de pagamento a Zapp aceita?",
+    "Como posso adicionar ou remover uma forma de pagamento no aplicativo da Zapp?",
+    "É seguro armazenar informações do meu cartão na Zapp?",
+    "Como faço para definir uma forma de pagamento como padrão?"
+  ]
+}

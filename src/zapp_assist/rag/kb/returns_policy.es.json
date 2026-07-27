@@ -1,0 +1,14 @@
+{
+  "id": "returns_policy_es",
+  "title": "Política de devoluciones",
+  "text": "La mayoría de los artículos se pueden devolver dentro de los 14 días posteriores a la entrega, siempre que estén sin usar y en su embalaje original. Algunos productos no admiten devolución, como los perecederos, los artículos de cuidado personal y las tarjetas de regalo. El reembolso se emite una vez que la devolución pasa la inspección.",
+  "lang": "es",
+  "category": "returns",
+  "topic": "policy",
+  "questions": [
+    "¿Cuánto tiempo tengo para devolver un artículo después de recibirlo?",
+    "¿Qué condiciones deben cumplirse para que pueda devolver un producto?",
+    "¿Hay productos que no se pueden devolver?",
+    "¿Cómo se procesa el reembolso una vez que retorno un artículo?"
+  ]
+}

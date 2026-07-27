@@ -1,0 +1,14 @@
+{
+  "id": "membership_cancel_en",
+  "title": "Cancelling your Zapp+ membership",
+  "text": "You can cancel Zapp+ any time under Settings > Membership > Cancel. Your benefits stay active until the end of the period you've already paid for, and there are no partial refunds for the current cycle. You can rejoin whenever you like.",
+  "lang": "en",
+  "category": "membership",
+  "topic": "cancel",
+  "questions": [
+    "How can I cancel my Zapp+ membership?",
+    "Will I still have access to my benefits after I cancel?",
+    "Is there a refund if I cancel my Zapp+ membership before the period ends?",
+    "Can I reactivate my Zapp+ membership after I cancel it?"
+  ]
+}

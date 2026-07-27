@@ -1,0 +1,14 @@
+{
+  "id": "account_update_en",
+  "title": "Updating your email or phone number",
+  "text": "You can update your email or phone number under Settings, Account in the Zapp app. To change your email, confirm the verification link we send to the new address. To change your phone number, enter the one-time code we send by SMS.",
+  "lang": "en",
+  "category": "account",
+  "topic": "update",
+  "questions": [
+    "How do I change my email address in the Zapp app?",
+    "What steps do I need to take to update my phone number?",
+    "Is there a verification process for updating my email?",
+    "How can I confirm my new phone number on Zapp?"
+  ]
+}

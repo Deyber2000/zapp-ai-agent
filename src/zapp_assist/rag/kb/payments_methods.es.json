@@ -1,0 +1,14 @@
+{
+  "id": "payments_methods_es",
+  "title": "Métodos de pago en Zapp",
+  "text": "Zapp acepta tarjetas de crédito y débito, el saldo de tu monedero Zapp y una cuenta bancaria vinculada. Para agregar o quitar un método de pago, ve a Ajustes > Pagos en la app, donde también puedes marcar uno como predeterminado. Las tarjetas se tokenizan de forma segura y Zapp nunca guarda el número completo de tu tarjeta.",
+  "lang": "es",
+  "category": "payments",
+  "topic": "methods",
+  "questions": [
+    "¿Cuáles son los métodos de pago que puedo usar en Zapp?",
+    "¿Cómo puedo agregar o eliminar un método de pago en mi cuenta Zapp?",
+    "¿Zapp guarda el número completo de mi tarjeta de crédito?",
+    "¿Dónde encuentro la opción para marcar un método de pago como predeterminado en la app?"
+  ]
+}

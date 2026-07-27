@@ -53,6 +53,60 @@
       "Vocês me passam a senha pelo chat?"
     ]
   },
+  "account_update_en": {
+    "hash": "a0202a4c350b46606c1aab3cea2557783b00a64035ee856ee289325dbdb75fda",
+    "questions": [
+      "How do I change my email address in the Zapp app?",
+      "What steps do I need to take to update my phone number?",
+      "Is there a verification process for updating my email?",
+      "How can I confirm my new phone number on Zapp?"
+    ]
+  },
+  "account_update_es": {
+    "hash": "8998b466a17078ae7725191acea3beda944b477a3d5303a3437f73b451715b20",
+    "questions": [
+      "¿Cómo puedo actualizar mi correo electrónico en la app de Zapp?",
+      "¿Qué debo hacer para cambiar mi número de teléfono en Zapp?",
+      "¿Recibiré un código para verificar mi nuevo número al cambiarlo?",
+      "¿Es necesario confirmar el enlace de verificación si actualizo mi correo?"
+    ]
+  },
+  "account_update_pt": {
+    "hash": "252aa6b551e91289109abbcbecb5f7b6782959fb1951b2869104c106d14515e4",
+    "questions": [
+      "Como posso mudar meu e-mail na Zapp?",
+      "O que preciso fazer para atualizar meu número de telefone?",
+      "Receberei uma confirmação ao trocar meu e-mail?",
+      "Qual é o procedimento para alterar meu telefone no aplicativo?"
+    ]
+  },
+  "delivery_missed_en": {
+    "hash": "2ae9e4359530a5f3c49757b83cdc0e15c8753c75834f918267992379a1c1caf4",
+    "questions": [
+      "What happens if I miss my delivery?",
+      "Can I request a redelivery if I'm not home when the courier arrives?",
+      "How long will the courier wait before leaving my package?",
+      "Will I get a refund if my order is returned after two missed attempts?"
+    ]
+  },
+  "delivery_missed_es": {
+    "hash": "cdd0679daf75989e30b35302f1652a8f3cbfea3a13cb402f531ebf914d4ef662",
+    "questions": [
+      "¿Qué pasa si no estoy en casa cuando llega el repartidor?",
+      "¿Puedo pedir que me entreguen el paquete de nuevo el mismo día?",
+      "¿Qué hago si el repartidor intenta entregarme el pedido pero no estoy disponible?",
+      "¿Qué ocurre si no hay nadie para recibir el envío tras dos intentos?"
+    ]
+  },
+  "delivery_missed_pt": {
+    "hash": "3d87717bb44c878f106294aba1575eb29ffe30a4f04b7d22ea570ee78a1af898",
+    "questions": [
+      "E se eu não estiver em casa quando o entregador chegar?",
+      "O que acontece se a entrega não for realizada?",
+      "Como posso solicitar uma nova entrega do meu pedido?",
+      "Meu pacote será devolvido se eu não puder recebê-lo?"
+    ]
+  },
   "delivery_reschedule_en": {
     "hash": "79c9b2042dae543cfff95f741299f444a594674bb72bd686251edf107ac584e8",
     "questions": [
@@ -105,6 +159,222 @@
       "Como acompanho o entregador no mapa?",
       "Por que ainda não vejo o rastreamento?",
       "Como verifico o status da minha encomenda?"
+    ]
+  },
+  "membership_benefits_en": {
+    "hash": "12c50fb1d2b967c88877fb07671932325e7d311ea859d90680281c5f0bd307fb",
+    "questions": [
+      "What are the benefits of joining the Zapp+ membership?",
+      "How can I access the discounts and delivery perks with Zapp+?",
+      "Is there a way to manage my Zapp+ membership subscription?",
+      "Do I get free shipping on all my orders with Zapp+?"
+    ]
+  },
+  "membership_benefits_es": {
+    "hash": "dd2feccc8d0e0202852f516303b41f1db4254f0ee2e009a2e1cca6bd1b01cb02",
+    "questions": [
+      "¿Qué beneficios obtengo al suscribirme a Zapp+?",
+      "¿Cuáles son las ventajas de ser miembro de Zapp+?",
+      "¿Qué descuentos ofrece la membresía Zapp+?",
+      "¿Cómo puedo administrar mi suscripción a Zapp+?"
+    ]
+  },
+  "membership_benefits_pt": {
+    "hash": "c020913f825cc14e20c12462c4e9c1441356c1e70406c38a2e4afa9cca95d07b",
+    "questions": [
+      "Quais são os benefícios de ter a assinatura Zapp+?",
+      "Como funciona a entrega grátis com a assinatura Zapp+?",
+      "Posso escolher a frequência da cobrança da assinatura Zapp+?",
+      "Onde posso gerenciar a minha assinatura Zapp+?"
+    ]
+  },
+  "membership_cancel_en": {
+    "hash": "858894ab6f75353306780a57e86ec4bb873ca017150b5997bad301d6009f0375",
+    "questions": [
+      "How can I cancel my Zapp+ membership?",
+      "Will I still have access to my benefits after I cancel?",
+      "Is there a refund if I cancel my Zapp+ membership before the period ends?",
+      "Can I reactivate my Zapp+ membership after I cancel it?"
+    ]
+  },
+  "membership_cancel_es": {
+    "hash": "bd3485372161c6aafa0aa281df7c96bb3e4f15f35258e66972530a5b34cef4c4",
+    "questions": [
+      "¿Cómo puedo cancelar mi membresía Zapp+?",
+      "¿Qué sucede con mis beneficios tras cancelar Zapp+?",
+      "¿Puedo recibir un reembolso si cancelo mi suscripción a Zapp+?",
+      "¿Hay alguna limitación para reactivar mi membresía Zapp+ después de cancelarla?"
+    ]
+  },
+  "membership_cancel_pt": {
+    "hash": "5c82849618a51f887a35ae9816681155afeb06052e79ba1ca468b4c8c93a4a7f",
+    "questions": [
+      "Como faço para cancelar minha assinatura do Zapp+?",
+      "O que acontece com meus benefícios após o cancelamento da assinatura?",
+      "Posso obter um reembolso parcial se cancelar minha assinatura do Zapp+ agora?",
+      "Se eu cancelar, posso voltar a assinar o Zapp+ mais tarde?"
+    ]
+  },
+  "orders_cancel_en": {
+    "hash": "cf880adf27c4abf006b9ab144476260a511b2efdaf22cc176f23064344b78a29",
+    "questions": [
+      "How can I cancel my Zapp order?",
+      "Is it possible to cancel an order once the courier has picked it up?",
+      "Will I be charged a fee if I cancel my order after it's been prepared?",
+      "Do I get a refund if I cancel my order?"
+    ]
+  },
+  "orders_cancel_es": {
+    "hash": "e22016d3a2efb86129ff715b724b012b71fc99fc4b6e9aeda35a2d5a7e07c458",
+    "questions": [
+      "¿Puedo cancelar mi pedido en Zapp?",
+      "¿Cómo hago para cancelar un paquete que pedí?",
+      "¿Hay algún costo por cancelar mi pedido en Zapp?",
+      "¿Qué sucede si quiero cancelar mi pedido después de que el repartidor ya lo ha recogido?"
+    ]
+  },
+  "orders_cancel_pt": {
+    "hash": "69f7d7f7127ac334bfd757a32cb21af340e2670699e5cbf780832ed3e69f2af0",
+    "questions": [
+      "Como faço para cancelar meu pedido na Zapp?",
+      "É possível cancelar um pedido depois que o entregador já retirou?",
+      "Quando posso cancelar meu pedido sem pagar nenhuma taxa?",
+      "O que acontece se eu cancelar o pedido após a coleta pelo entregador?"
+    ]
+  },
+  "orders_missing_en": {
+    "hash": "52213f5cdb0dfbbb5383406c427bbad6443a0d2b101532ddbe4e0759529eb5f4",
+    "questions": [
+      "What should I do if something is missing from my order?",
+      "How can I report a damaged item from my shipment?",
+      "Is there a time limit to report missing items from my parcel?",
+      "Will I get a refund for items that didn't arrive or were damaged?"
+    ]
+  },
+  "orders_missing_es": {
+    "hash": "07fae4f05cbc33e3b9f27ed63a45dc175c40c786a02d989c8139366129e330dc",
+    "questions": [
+      "¿Qué debo hacer si me falta un artículo en mi pedido?",
+      "¿Cómo reporto un producto dañado que recibí?",
+      "¿Tengo un tiempo límite para informar sobre artículos faltantes?",
+      "¿Recibiré un reembolso si mi artículo llegó dañado?"
+    ]
+  },
+  "orders_missing_pt": {
+    "hash": "ef7487b5631900e10a8e7166ba549aa65ea947cb3de741237c8d335e756c3721",
+    "questions": [
+      "O que devo fazer se eu receber um item faltando na minha entrega?",
+      "Como posso relatar um problema com um produto danificado?",
+      "Quais são os passos para informar sobre itens que não vieram no meu pedido?",
+      "Vou ser reembolsado se um item chegar danificado ou estiver faltando?"
+    ]
+  },
+  "payments_methods_en": {
+    "hash": "17f7b0a107f906707351507cda5be6481cfeef9b2d23906c925423b093e5d68d",
+    "questions": [
+      "What payment options do I have on Zapp?",
+      "How can I manage my payment methods in the app?",
+      "Is my card information safe when I use Zapp?",
+      "Can I set a default payment method for transactions?"
+    ]
+  },
+  "payments_methods_es": {
+    "hash": "2c5d9dbb4003705e4c779cff654961b6ee48e4e496e1d93280a9a1212f20def0",
+    "questions": [
+      "¿Cuáles son los métodos de pago que puedo usar en Zapp?",
+      "¿Cómo puedo agregar o eliminar un método de pago en mi cuenta Zapp?",
+      "¿Zapp guarda el número completo de mi tarjeta de crédito?",
+      "¿Dónde encuentro la opción para marcar un método de pago como predeterminado en la app?"
+    ]
+  },
+  "payments_methods_pt": {
+    "hash": "200f837b258c1dfd9402e1934d86ccbd03affae8ae75869f4a497da99b220074",
+    "questions": [
+      "Quais formas de pagamento a Zapp aceita?",
+      "Como posso adicionar ou remover uma forma de pagamento no aplicativo da Zapp?",
+      "É seguro armazenar informações do meu cartão na Zapp?",
+      "Como faço para definir uma forma de pagamento como padrão?"
+    ]
+  },
+  "payments_refunds_en": {
+    "hash": "18cb95295444053dd8985cbcf35b8bc15110d4379a038262d84a45ebce6ec10b",
+    "questions": [
+      "How long does it take to get my money back for a cancelled order?",
+      "When will I see my refund in my original payment method?",
+      "What if I don't receive my refund after 10 business days?",
+      "Is the refund to my Zapp wallet instant?"
+    ]
+  },
+  "payments_refunds_es": {
+    "hash": "c07fed4f0f3c04826f440b3856d4f03ee9cd15f10e1f7763d490a0062fdbfbab",
+    "questions": [
+      "¿Cuánto tiempo tarda en procesarse un reembolso por un pedido cancelado?",
+      "Si cancelo un pedido, ¿cuándo veré el dinero devuelto a mi tarjeta?",
+      "¿Los reembolsos al monedero Zapp son inmediatos?",
+      "¿Qué debo hacer si no recibo mi reembolso después de 10 días hábiles?"
+    ]
+  },
+  "payments_refunds_pt": {
+    "hash": "47aa7f4a74fd3b5a8ebc7e8225a6a7cf176ed7bb42f8ad393b8c78646bb88793",
+    "questions": [
+      "Quanto tempo leva para eu receber o reembolso de um pedido cancelado?",
+      "Os reembolsos para minha carteira Zapp são imediatos?",
+      "E se o reembolso não aparecer no meu cartão após 10 dias úteis, o que devo fazer?",
+      "O reembolso de um pedido com falha volta para o mesmo cartão de onde paguei?"
+    ]
+  },
+  "returns_policy_en": {
+    "hash": "ce185bd408400649323be9fae366ea173a5903897840c60dde5f703c9235b0be",
+    "questions": [
+      "What is the time frame for returning items after I receive my shipment?",
+      "Are there any products I can't return to Zapp?",
+      "How do I ensure my return qualifies for a refund?",
+      "What condition do items need to be in for a successful return?"
+    ]
+  },
+  "returns_policy_es": {
+    "hash": "fffb3059302b8b806845bd0b2d6848a3f25e637cc670bc975021e7a87e41425f",
+    "questions": [
+      "¿Cuánto tiempo tengo para devolver un artículo después de recibirlo?",
+      "¿Qué condiciones deben cumplirse para que pueda devolver un producto?",
+      "¿Hay productos que no se pueden devolver?",
+      "¿Cómo se procesa el reembolso una vez que retorno un artículo?"
+    ]
+  },
+  "returns_policy_pt": {
+    "hash": "69fae4a97c5bd4867f551229185669e0e3d14e53b955f1a2524278eab2a4a8ca",
+    "questions": [
+      "Quanto tempo tenho para devolver um produto depois da entrega?",
+      "Posso devolver itens que já usei?",
+      "Quais produtos não podem ser devolvidos?",
+      "Quando recebo meu reembolso após fazer a devolução?"
+    ]
+  },
+  "returns_start_en": {
+    "hash": "cbbcd411226ae02ea699dd14e6f2f74ba14976a42d56518cba33047dd1bc7924",
+    "questions": [
+      "How do I start my return for an order?",
+      "What steps do I need to take to return an item?",
+      "Can I get my refund after I return a parcel?",
+      "Where can I drop off my package for a return?"
+    ]
+  },
+  "returns_start_es": {
+    "hash": "e9baf86d164469f037cab1ed1e56b61442247f9ef9a09956e3da7d9558a3bd5a",
+    "questions": [
+      "¿Cómo puedo empezar el proceso de devolución de un artículo?",
+      "¿Qué pasos debo seguir para devolver un paquete que compré?",
+      "¿Dónde puedo dejar mi envío para que sea recogido por Zapp?",
+      "¿Cuándo recibiré mi reembolso después de devolver un producto?"
+    ]
+  },
+  "returns_start_pt": {
+    "hash": "ee318547e41de951e1784e7b08f73f0be17dc117e4e2d46bcf231f4d80ea7c79",
+    "questions": [
+      "Como posso começar a devolver um item que comprei?",
+      "O que preciso fazer para devolver minha encomenda?",
+      "Posso deixar meu pacote em um ponto de coleta para devolução?",
+      "Quando recebo meu reembolso após devolver um produto?"
     ]
   }
 }

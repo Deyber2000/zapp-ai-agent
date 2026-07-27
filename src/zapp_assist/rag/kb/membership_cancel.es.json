@@ -1,0 +1,14 @@
+{
+  "id": "membership_cancel_es",
+  "title": "Cancelar tu membresía Zapp+",
+  "text": "Puedes cancelar Zapp+ cuando quieras en Ajustes > Membresía > Cancelar. Tus beneficios siguen activos hasta el final del periodo que ya pagaste, y no hay reembolsos parciales del ciclo en curso. Puedes volver a suscribirte cuando quieras.",
+  "lang": "es",
+  "category": "membership",
+  "topic": "cancel",
+  "questions": [
+    "¿Cómo puedo cancelar mi membresía Zapp+?",
+    "¿Qué sucede con mis beneficios tras cancelar Zapp+?",
+    "¿Puedo recibir un reembolso si cancelo mi suscripción a Zapp+?",
+    "¿Hay alguna limitación para reactivar mi membresía Zapp+ después de cancelarla?"
+  ]
+}

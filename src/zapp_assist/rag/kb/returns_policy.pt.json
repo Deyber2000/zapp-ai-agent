@@ -1,0 +1,14 @@
+{
+  "id": "returns_policy_pt",
+  "title": "Política de devoluções",
+  "text": "A maioria dos itens pode ser devolvida em até 14 dias após a entrega, desde que estejam sem uso e na embalagem original. Alguns produtos não podem ser devolvidos, como perecíveis, itens de cuidado pessoal e cartões-presente. O reembolso é emitido assim que a devolução passa pela inspeção.",
+  "lang": "pt",
+  "category": "returns",
+  "topic": "policy",
+  "questions": [
+    "Quanto tempo tenho para devolver um produto depois da entrega?",
+    "Posso devolver itens que já usei?",
+    "Quais produtos não podem ser devolvidos?",
+    "Quando recebo meu reembolso após fazer a devolução?"
+  ]
+}

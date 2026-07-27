@@ -1,0 +1,14 @@
+{
+  "id": "payments_refunds_en",
+  "title": "Refunds for cancelled or failed orders",
+  "text": "Refunds for cancelled or failed orders go back to your original payment method within 5 to 10 business days. Refunds to your Zapp wallet are instant. If you don't see a card refund after 10 business days, contact support with your order number.",
+  "lang": "en",
+  "category": "payments",
+  "topic": "refunds",
+  "questions": [
+    "How long does it take to get my money back for a cancelled order?",
+    "When will I see my refund in my original payment method?",
+    "What if I don't receive my refund after 10 business days?",
+    "Is the refund to my Zapp wallet instant?"
+  ]
+}

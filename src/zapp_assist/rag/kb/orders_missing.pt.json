@@ -1,0 +1,14 @@
+{
+  "id": "orders_missing_pt",
+  "title": "Itens faltando ou danificados",
+  "text": "Se um item estiver faltando ou chegar danificado, informe dentro de 48 horas. Abra Pedidos, selecione o pedido, toque em Ajuda e escolha 'Relatar um problema'. Os itens elegíveis são reembolsados na sua forma de pagamento original ou na carteira Zapp após uma análise rápida.",
+  "lang": "pt",
+  "category": "orders",
+  "topic": "missing_items",
+  "questions": [
+    "O que devo fazer se eu receber um item faltando na minha entrega?",
+    "Como posso relatar um problema com um produto danificado?",
+    "Quais são os passos para informar sobre itens que não vieram no meu pedido?",
+    "Vou ser reembolsado se um item chegar danificado ou estiver faltando?"
+  ]
+}

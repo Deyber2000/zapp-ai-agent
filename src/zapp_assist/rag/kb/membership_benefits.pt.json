@@ -1,0 +1,14 @@
+{
+  "id": "membership_benefits_pt",
+  "title": "Benefícios da assinatura Zapp+",
+  "text": "O Zapp+ é a nossa assinatura: entrega grátis em pedidos acima do valor mínimo, horários de entrega prioritários e descontos exclusivos para assinantes. A cobrança é mensal ou anual, e você pode gerenciar a assinatura quando quiser em Configurações > Assinatura.",
+  "lang": "pt",
+  "category": "membership",
+  "topic": "benefits",
+  "questions": [
+    "Quais são os benefícios de ter a assinatura Zapp+?",
+    "Como funciona a entrega grátis com a assinatura Zapp+?",
+    "Posso escolher a frequência da cobrança da assinatura Zapp+?",
+    "Onde posso gerenciar a minha assinatura Zapp+?"
+  ]
+}

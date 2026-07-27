@@ -1,0 +1,14 @@
+{
+  "id": "membership_benefits_en",
+  "title": "Zapp+ membership benefits",
+  "text": "Zapp+ is our membership: free delivery on orders above the minimum, priority delivery slots, and members-only discounts. It's billed monthly or annually, and you can manage it any time under Settings > Membership.",
+  "lang": "en",
+  "category": "membership",
+  "topic": "benefits",
+  "questions": [
+    "What are the benefits of joining the Zapp+ membership?",
+    "How can I access the discounts and delivery perks with Zapp+?",
+    "Is there a way to manage my Zapp+ membership subscription?",
+    "Do I get free shipping on all my orders with Zapp+?"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "payments_methods_en",
+  "title": "Payment methods on Zapp",
+  "text": "Zapp accepts credit and debit cards, your Zapp wallet balance, and a linked bank account. To add or remove a payment method, go to Settings > Payments in the app, where you can also set one method as your default. Cards are securely tokenized, and Zapp never stores your full card number.",
+  "lang": "en",
+  "category": "payments",
+  "topic": "methods",
+  "questions": [
+    "What payment options do I have on Zapp?",
+    "How can I manage my payment methods in the app?",
+    "Is my card information safe when I use Zapp?",
+    "Can I set a default payment method for transactions?"
+  ]
+}

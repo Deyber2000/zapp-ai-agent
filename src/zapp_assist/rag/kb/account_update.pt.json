@@ -1,0 +1,14 @@
+{
+  "id": "account_update_pt",
+  "title": "Atualizar seu e-mail ou telefone",
+  "text": "Você pode atualizar seu e-mail ou número de telefone em Configurações, Conta, no app da Zapp. Para mudar o e-mail, confirme o link de verificação que enviamos para o novo endereço. Para mudar o telefone, digite o código de uso único que enviamos por SMS.",
+  "lang": "pt",
+  "category": "account",
+  "topic": "update",
+  "questions": [
+    "Como posso mudar meu e-mail na Zapp?",
+    "O que preciso fazer para atualizar meu número de telefone?",
+    "Receberei uma confirmação ao trocar meu e-mail?",
+    "Qual é o procedimento para alterar meu telefone no aplicativo?"
+  ]
+}

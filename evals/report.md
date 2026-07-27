@@ -11,13 +11,13 @@
 | guardrail_recall | 1.0 (TP=4 FN=0) | ≥ 0.9 | PASS |
 | guardrail_precision | 1.0 (TP=4 FP=0) | ≥ 0.9 | PASS |
 | judge_quality | 4.827 (avg of 13 (out of 5)) | ≥ 3.5 | PASS |
-| latency_p95_ms | 4.719 (per-turn p95) | ≤ 5000.0 | PASS |
-| cost_per_convo | 0.002146 (mean per case) | ≤ 0.05 | PASS |
+| latency_p95_ms | 24.096 (per-turn p95) | ≤ 5000.0 | PASS |
+| cost_per_convo | 0.002215 (mean per case) | ≤ 0.05 | PASS |
 
 ## Operational
 
-- latency p50: 3.361 ms · p95: 4.719 ms
-- estimated cost / conversation: $0.002146
+- latency p50: 9.105 ms · p95: 24.096 ms
+- estimated cost / conversation: $0.002215
 
 ## Task success by capability
 

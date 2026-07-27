@@ -1,0 +1,14 @@
+{
+  "id": "payments_refunds_es",
+  "title": "Reembolsos por pedidos cancelados o fallidos",
+  "text": "Los reembolsos por pedidos cancelados o fallidos vuelven a tu método de pago original en un plazo de 5 a 10 días hábiles. Los reembolsos a tu monedero Zapp son instantáneos. Si después de 10 días hábiles no ves el reembolso en tu tarjeta, contacta con soporte e indica tu número de pedido.",
+  "lang": "es",
+  "category": "payments",
+  "topic": "refunds",
+  "questions": [
+    "¿Cuánto tiempo tarda en procesarse un reembolso por un pedido cancelado?",
+    "Si cancelo un pedido, ¿cuándo veré el dinero devuelto a mi tarjeta?",
+    "¿Los reembolsos al monedero Zapp son inmediatos?",
+    "¿Qué debo hacer si no recibo mi reembolso después de 10 días hábiles?"
+  ]
+}

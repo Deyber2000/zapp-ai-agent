@@ -1,0 +1,14 @@
+{
+  "id": "orders_cancel_en",
+  "title": "Cancelling an order",
+  "text": "You can cancel a Zapp order for free while it is still being prepared. Open Orders, select the order, and tap Cancel. Once the courier has picked it up, cancellation may no longer be possible or may incur a fee. Any charge is refunded to your original payment method.",
+  "lang": "en",
+  "category": "orders",
+  "topic": "cancel",
+  "questions": [
+    "How can I cancel my Zapp order?",
+    "Is it possible to cancel an order once the courier has picked it up?",
+    "Will I be charged a fee if I cancel my order after it's been prepared?",
+    "Do I get a refund if I cancel my order?"
+  ]
+}

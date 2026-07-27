@@ -4,13 +4,14 @@ Generates the **HyPE** hypothetical questions each document answers (the signal 
 question match a stored *question* rather than only the answer prose). Enrichment is provider-backed
 but never runs on the serving path: results are stored in a committed, content-addressed cache
 (`enrichment_cache.json`) keyed by document id + a hash of its text, so rebuilding the KB offline is
-deterministic and keyless. A live provider is used only via `--refresh` (or to fill new documents).
+deterministic and keyless. A live provider is used only under `--refresh`, and only for docs the
+cache doesn't already cover — a curated cache entry is never regenerated (or re-billed).
 
 Cache states, per document:
-- **cache**    — a fresh cache entry exists (hash matches) → reuse it (the offline default).
+- **cache**    — a fresh cache entry exists (hash matches) → reuse it (always, even under refresh).
 - **adopted**  — no cache entry, but the source file already carries questions → adopt them into the
   cache. This self-seeds the cache from the existing committed KB on the first build.
-- **generated**— generated via the LLM (only under `refresh`, or when a doc has no questions yet).
+- **generated**— generated via the LLM under `--refresh`, for a doc the cache doesn't cover.
 - **missing**  — no cache, no existing questions, and no LLM available → left empty (a warning).
 """
 
@@ -136,22 +137,25 @@ def hype_questions(
 ) -> EnrichResult:
     """Resolve a doc's HyPE questions via cache / adoption / generation (see module docstring)."""
 
-    if not refresh:
-        cached = cache.get(doc)
-        if cached is not None:
-            return EnrichResult(questions=cached, status="cache")
-        if doc.questions:  # self-seed the cache from the already-authored KB
-            adopted = _clean(doc.questions, n)
-            cache.put(doc, adopted)
-            return EnrichResult(questions=adopted, status="adopted")
+    # The cache is always authoritative: a hit is reused even under refresh, so an existing curated
+    # document is never regenerated (and never re-billed). Refresh only fills the gaps below.
+    cached = cache.get(doc)
+    if cached is not None:
+        return EnrichResult(questions=cached, status="cache")
 
-    if llm is not None and model:
+    # No cache entry (a new or content-changed doc). Offline, adopt any authored questions.
+    if not refresh and doc.questions:  # self-seed the cache from the already-authored KB
+        adopted = _clean(doc.questions, n)
+        cache.put(doc, adopted)
+        return EnrichResult(questions=adopted, status="adopted")
+
+    if llm is not None and model:  # refresh with a provider: generate for this uncached doc
         result = _generate(doc, llm=llm, model=model, n=n)
         if result.questions:
             cache.put(doc, result.questions)
         return result
 
-    # Refresh requested but no LLM, or a brand-new doc offline: fall back to any existing questions.
+    # Refresh requested but no LLM available: fall back to any authored questions, else leave empty.
     if doc.questions:
         adopted = _clean(doc.questions, n)
         cache.put(doc, adopted)

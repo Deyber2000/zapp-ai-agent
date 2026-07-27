@@ -1,0 +1,14 @@
+{
+  "id": "orders_cancel_es",
+  "title": "Cancelar un pedido",
+  "text": "Puedes cancelar un pedido de Zapp gratis mientras todavía se está preparando. Abre Pedidos, selecciona el pedido y toca Cancelar. Una vez que el repartidor lo ha recogido, quizá ya no puedas cancelarlo o se aplique un cargo. Cualquier cargo se reembolsa a tu método de pago original.",
+  "lang": "es",
+  "category": "orders",
+  "topic": "cancel",
+  "questions": [
+    "¿Puedo cancelar mi pedido en Zapp?",
+    "¿Cómo hago para cancelar un paquete que pedí?",
+    "¿Hay algún costo por cancelar mi pedido en Zapp?",
+    "¿Qué sucede si quiero cancelar mi pedido después de que el repartidor ya lo ha recogido?"
+  ]
+}

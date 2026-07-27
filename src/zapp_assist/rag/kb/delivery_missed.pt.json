@@ -1,0 +1,14 @@
+{
+  "id": "delivery_missed_pt",
+  "title": "Entrega não realizada",
+  "text": "Se você não estiver presente quando o entregador chegar, ele espera alguns minutos e depois segue viagem. Você pode solicitar uma reentrega no mesmo dia ou reagendá-la pela tela do pedido no app da Zapp. Após duas tentativas sem sucesso, o pedido é devolvido e reembolsado no seu método de pagamento original.",
+  "lang": "pt",
+  "category": "delivery",
+  "topic": "missed",
+  "questions": [
+    "E se eu não estiver em casa quando o entregador chegar?",
+    "O que acontece se a entrega não for realizada?",
+    "Como posso solicitar uma nova entrega do meu pedido?",
+    "Meu pacote será devolvido se eu não puder recebê-lo?"
+  ]
+}

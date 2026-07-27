@@ -1,0 +1,14 @@
+{
+  "id": "delivery_missed_en",
+  "title": "Missed delivery",
+  "text": "If you're not there when the courier arrives, they'll wait a few minutes and then move on. You can request a same-day redelivery or reschedule it from the order screen in the Zapp app. After two failed attempts, the order is returned and refunded to your original payment method.",
+  "lang": "en",
+  "category": "delivery",
+  "topic": "missed",
+  "questions": [
+    "What happens if I miss my delivery?",
+    "Can I request a redelivery if I'm not home when the courier arrives?",
+    "How long will the courier wait before leaving my package?",
+    "Will I get a refund if my order is returned after two missed attempts?"
+  ]
+}

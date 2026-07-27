@@ -1,0 +1,14 @@
+{
+  "id": "account_update_es",
+  "title": "Actualizar tu correo o teléfono",
+  "text": "Puedes actualizar tu correo electrónico o número de teléfono en Ajustes, Cuenta, en la app de Zapp. Para cambiar el correo, confirma el enlace de verificación que enviamos a la nueva dirección. Para cambiar el teléfono, introduce el código de un solo uso que enviamos por SMS.",
+  "lang": "es",
+  "category": "account",
+  "topic": "update",
+  "questions": [
+    "¿Cómo puedo actualizar mi correo electrónico en la app de Zapp?",
+    "¿Qué debo hacer para cambiar mi número de teléfono en Zapp?",
+    "¿Recibiré un código para verificar mi nuevo número al cambiarlo?",
+    "¿Es necesario confirmar el enlace de verificación si actualizo mi correo?"
+  ]
+}

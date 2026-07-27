@@ -1,0 +1,14 @@
+{
+  "id": "payments_refunds_pt",
+  "title": "Reembolsos de pedidos cancelados ou com falha",
+  "text": "Os reembolsos de pedidos cancelados ou com falha voltam para a sua forma de pagamento original em 5 a 10 dias úteis. Os reembolsos para a sua carteira Zapp são instantâneos. Se depois de 10 dias úteis você não vir o reembolso no cartão, fale com o suporte informando o número do pedido.",
+  "lang": "pt",
+  "category": "payments",
+  "topic": "refunds",
+  "questions": [
+    "Quanto tempo leva para eu receber o reembolso de um pedido cancelado?",
+    "Os reembolsos para minha carteira Zapp são imediatos?",
+    "E se o reembolso não aparecer no meu cartão após 10 dias úteis, o que devo fazer?",
+    "O reembolso de um pedido com falha volta para o mesmo cartão de onde paguei?"
+  ]
+}

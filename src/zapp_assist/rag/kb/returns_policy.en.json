@@ -1,0 +1,14 @@
+{
+  "id": "returns_policy_en",
+  "title": "Return policy",
+  "text": "Most items can be returned within 14 days of delivery, as long as they're unused and in their original packaging. A few things can't be returned, including perishables, personal-care products, and gift cards. Once we receive your return and it passes inspection, we issue your refund.",
+  "lang": "en",
+  "category": "returns",
+  "topic": "policy",
+  "questions": [
+    "What is the time frame for returning items after I receive my shipment?",
+    "Are there any products I can't return to Zapp?",
+    "How do I ensure my return qualifies for a refund?",
+    "What condition do items need to be in for a successful return?"
+  ]
+}

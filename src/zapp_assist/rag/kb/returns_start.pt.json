@@ -1,0 +1,14 @@
+{
+  "id": "returns_start_pt",
+  "title": "Como iniciar uma devolução",
+  "text": "Para iniciar uma devolução, abra Pedidos, selecione o pedido e toque em 'Devolver item'; depois escolha um motivo. Você pode entregar a encomenda a um entregador da Zapp ou deixá-la em um ponto parceiro usando a etiqueta que fornecemos. O reembolso é emitido assim que recebemos o item e o verificamos.",
+  "lang": "pt",
+  "category": "returns",
+  "topic": "start",
+  "questions": [
+    "Como posso começar a devolver um item que comprei?",
+    "O que preciso fazer para devolver minha encomenda?",
+    "Posso deixar meu pacote em um ponto de coleta para devolução?",
+    "Quando recebo meu reembolso após devolver um produto?"
+  ]
+}

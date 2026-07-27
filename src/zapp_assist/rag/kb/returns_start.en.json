@@ -1,0 +1,14 @@
+{
+  "id": "returns_start_en",
+  "title": "How to start a return",
+  "text": "To start a return, open Orders, select the order, and tap 'Return item', then choose a reason. You can hand the parcel to a Zapp courier or drop it off at a partner point using the label we provide. Your refund is issued once we receive the item and check it.",
+  "lang": "en",
+  "category": "returns",
+  "topic": "start",
+  "questions": [
+    "How do I start my return for an order?",
+    "What steps do I need to take to return an item?",
+    "Can I get my refund after I return a parcel?",
+    "Where can I drop off my package for a return?"
+  ]
+}

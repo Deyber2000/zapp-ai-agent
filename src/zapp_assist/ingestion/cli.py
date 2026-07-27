@@ -1,7 +1,7 @@
 """`zapp-ingest` — one-command knowledge ingestion (spec 001, FR-023).
 
     zapp-ingest build              # rebuild the KB from cache (offline, deterministic, keyless)
-    zapp-ingest build --refresh    # regenerate enrichment via the configured provider (needs a key)
+    zapp-ingest build --refresh    # enrich cache-missing docs via the provider (needs a key)
     zapp-ingest validate           # structural + coverage checks only (CI gate; non-zero on error)
 
 Exits non-zero when validation fails, so it drops straight into CI.
@@ -29,7 +29,7 @@ def _print_validation(report: ValidationReport) -> None:
 @app.command()
 def build(
     refresh: bool = typer.Option(
-        False, "--refresh", help="Regenerate enrichment via the configured LLM (needs an API key)."
+        False, "--refresh", help="Enrich cache-missing docs via the configured LLM (needs a key)."
     ),
     n_questions: int = typer.Option(4, "--questions", help="HyPE questions per document."),
 ) -> None:

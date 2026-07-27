@@ -1,0 +1,14 @@
+{
+  "id": "orders_missing_es",
+  "title": "Artículos faltantes o dañados",
+  "text": "Si falta un artículo o llega dañado, repórtalo dentro de las 48 horas. Abre Pedidos, selecciona el pedido, toca Ayuda y elige 'Reportar un problema'. Los artículos elegibles se reembolsan a tu método de pago original o a tu billetera Zapp tras una revisión rápida.",
+  "lang": "es",
+  "category": "orders",
+  "topic": "missing_items",
+  "questions": [
+    "¿Qué debo hacer si me falta un artículo en mi pedido?",
+    "¿Cómo reporto un producto dañado que recibí?",
+    "¿Tengo un tiempo límite para informar sobre artículos faltantes?",
+    "¿Recibiré un reembolso si mi artículo llegó dañado?"
+  ]
+}

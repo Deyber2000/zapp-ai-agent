@@ -202,7 +202,7 @@ production path.
 | 3 | RRF over score normalization | no cross-scale calibration to get wrong | min-max / z-score fusion | a ×10 constant to report BM25-comparable confidence |
 | 4 | Self-Query as boost, not filter | a wrong prediction must not delete the answer | hard metadata filter (shipped, then reverted) | weaker precision gain than a filter |
 | 5 | BM25 floor everywhere | CI, tests, and eval stay keyless and offline | dense-only retrieval | lexical-only quality without a key |
-| 6 | No vector DB | 42 docs; a service adds ops, latency, a key | Pinecone / pgvector | re-embeds 210 texts at every process start |
+| 6 | Qdrant vector store, embedded by default | a real, swappable vector DB with no service to run; a server is a one-line `qdrant_url` flip | NumPy-only; or a hosted DB up front | embedded `:memory:` doesn't persist — vectors re-embed at every process start |
 | 7 | Whole `TurnState` in one graph channel | nodes stay plain functions, engine stays swappable | per-field channels + reducers | no automatic parallel-branch merging |
 | 8 | Deterministic HITL confirmation | irreversible ops must not hinge on a model guess | LLM-parsed confirmation | fixed trilingual lexicon; unknown affirmations re-ask |
 | 9 | Reply-language verified, one bounded correction | turns a prompt request into a guarantee | trust the prompt; loop until match | one extra call on genuine mismatch only |

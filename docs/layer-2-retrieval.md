@@ -151,19 +151,24 @@ Only step 2 depends on model compliance, and it is sandwiched between two determ
 
 ## Storage
 
-There is no vector database. The KB is 42 JSON files loaded at construction; BM25 builds an in-memory
-index; dense embeds 210 representations (42 docs + 168 HyPE questions) in a single batched call
-([dense.py:36-42](../src/zapp_assist/rag/dense.py#L36-L42)). At this corpus size a hosted vector store
-would add an operational dependency, a network hop, and a key requirement in exchange for nothing
-measurable.
+The dense side sits behind a `VectorStore` seam
+([vector_store.py](../src/zapp_assist/rag/vector_store.py)) with two backends: exact in-memory NumPy
+cosine, and **Qdrant** — a real vector database in **embedded/in-process mode** by default (no
+server, no network), or a Qdrant server via `qdrant_url` with server-side payload filtering as the
+metadata-scale path. It is selected by `config.retrieval.vector_store` (default `qdrant`), degrading
+to NumPy if `qdrant-client` is absent. The KB is 42 JSON files loaded at construction; BM25 builds
+its own in-memory index; dense embeds 210 representations (42 docs + 168 HyPE questions) in a single
+batched call and upserts them into the store. At this corpus size exact NumPy cosine is optimal;
+Qdrant makes the store a real, swappable component and turns server-mode into a one-line change.
 
-**But this is where the layer's clearest scaling gap is:** embeddings are computed **at every
-process start** and never persisted. One `Agent.create()` = one 210-input embedding call. That is
-tolerable for a CLI and for the eval (which deliberately builds one agent and reuses it,
+**But this is where the layer's clearest scaling gap is:** in embedded mode Qdrant holds vectors
+in-process, so embeddings are computed **at every process start** and never persisted. One
+`Agent.create()` = one 210-input embedding call. That is tolerable for a CLI and for the eval (which
+deliberately builds one agent and reuses it,
 [quality_tier.py:167](../evals/quality_tier.py#L167)), and untenable for a web service that restarts
-pods. The fix is already prototyped one layer up: **apply the ingestion layer's content-addressed
-cache pattern to vectors** — hash the representation, store the vector, commit or persist it. Same
-idea, same determinism benefit, roughly 40 lines.
+pods. The fix is a **persistent Qdrant** (server mode, or a local on-disk path) or applying the
+ingestion layer's content-addressed cache pattern to vectors — hash the representation, store the
+vector, commit or persist it. Same idea, same determinism benefit.
 
 ## Gap: retrieval is language-blind
 

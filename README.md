@@ -37,8 +37,9 @@ needed to run the agent live — **the full test suite uses a mock LLM and needs
 uv sync                       # install pinned deps (pyproject.toml / uv.lock)
 cp .env.example .env          # then add ANTHROPIC_API_KEY (for live runs only)
 
-# Run the agent (live — needs a key)
-uv run zapp-assist turn --session demo --text "¿hasta cuándo puedo reprogramar mi entrega?"
+# Run the agent (live — needs a key). Sessions persist to .zapp_sessions/, so `turn` is multi-turn:
+uv run zapp-assist turn --text "mi número es 55 1234 5678, soy de México"   # prints a session id
+uv run zapp-assist turn --session <that-id> --text "me llamo Ana"           # continues the thread
 uv run zapp-assist chat        # interactive multi-turn (keeps active_lang + memory)
 
 # Evaluate the agent (no key needed) — one command → one report + CI exit code

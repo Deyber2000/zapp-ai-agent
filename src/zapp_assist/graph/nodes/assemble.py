@@ -21,14 +21,21 @@ from ._util import (
 )
 
 _HISTORY_LIMIT = 10  # bounded recent turns kept on the session for multi-turn coherence (FR-015)
+_REPEAT_WINDOW = 3  # repetition guard compares against the last N replies (not just the previous)
 
 
 def _clamp(x: float) -> float:
     return max(0.0, min(1.0, float(x)))
 
 
-def _previous_reply(state: TurnState) -> str:
-    return state.session.history[-1].reply.strip() if state.session.history else ""
+def _norm_reply(text: str) -> str:
+    """Case/whitespace-insensitive key, so near-duplicates (a casing diff) also count as repeats."""
+
+    return " ".join(text.split()).casefold()
+
+
+def _recent_replies(state: TurnState) -> set[str]:
+    return {_norm_reply(t.reply) for t in state.session.history[-_REPEAT_WINDOW:]}
 
 
 def _record_history(state: TurnState) -> TurnState:
@@ -56,9 +63,16 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
         if state.blocked and not reply:
             reply = tmpl(GUARDRAIL_DECLINE_TEMPLATES, active)
 
-        # Repetition guard: never re-emit the exact previous reply (e.g. a completed onboarding
-        # re-run when the user supplies an already-captured detail). `history` holds prior turns.
-        if reply and reply.strip() == _previous_reply(state):
+        # Repetition guard: don't re-emit a reply we just sent (e.g. a completed onboarding re-run
+        # when the user supplies an already-captured detail). Compare against the last few replies,
+        # normalized for case/whitespace, so the agent can't ping-pong reply/nudge/reply or slip a
+        # near-duplicate. Skipped while an action awaits confirmation, where re-asking the same
+        # question verbatim is intentional (never say "already shared that" to a pending confirm).
+        if (
+            reply
+            and state.session.pending_action is None
+            and _norm_reply(reply) in _recent_replies(state)
+        ):
             reply = tmpl(REPETITION_TEMPLATES, active)
 
         if not reply or not reply.strip():

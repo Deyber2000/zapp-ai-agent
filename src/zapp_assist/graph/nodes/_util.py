@@ -38,11 +38,12 @@ SMALLTALK_TEMPLATES = {
     "pt": "Com prazer! Estou aqui para ajudar com seus pedidos, entregas e conta Zapp. "
     "Em que mais posso ajudar?",
 }
-# Shown instead of re-emitting the exact previous reply (e.g. re-running a completed onboarding).
+# Shown instead of re-emitting a reply we just sent (e.g. re-running a completed onboarding). Kept
+# neutral so it reads sensibly after any repeated reply — a confirmation as well as a refusal.
 REPETITION_TEMPLATES = {
-    "es": "Ya está todo listo con eso. ¿Hay algo más en lo que pueda ayudarte?",
-    "en": "You're all set there — is there anything else I can help you with?",
-    "pt": "Está tudo certo com isso. Posso ajudar com mais alguma coisa?",
+    "es": "Creo que ya te compartí eso. ¿Hay algo más en lo que pueda ayudarte?",
+    "en": "I think I already shared that — is there anything else I can help you with?",
+    "pt": "Acho que já compartilhei isso. Posso ajudar com mais alguma coisa?",
 }
 SAFE_FALLBACK_TEMPLATES = {
     "es": "Lo siento, tuve un problema temporal y no pude completar eso. "

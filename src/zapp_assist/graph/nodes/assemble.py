@@ -13,6 +13,7 @@ from ..deps import Deps
 from ..state import TurnState
 from ._util import (
     GUARDRAIL_DECLINE_TEMPLATES,
+    REPETITION_TEMPLATES,
     SAFE_FALLBACK_TEMPLATES,
     add_span,
     now,
@@ -24,6 +25,10 @@ _HISTORY_LIMIT = 10  # bounded recent turns kept on the session for multi-turn c
 
 def _clamp(x: float) -> float:
     return max(0.0, min(1.0, float(x)))
+
+
+def _previous_reply(state: TurnState) -> str:
+    return state.session.history[-1].reply.strip() if state.session.history else ""
 
 
 def _record_history(state: TurnState) -> TurnState:
@@ -50,6 +55,11 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
         reply = state.draft_reply
         if state.blocked and not reply:
             reply = tmpl(GUARDRAIL_DECLINE_TEMPLATES, active)
+
+        # Repetition guard: never re-emit the exact previous reply (e.g. a completed onboarding
+        # re-run when the user supplies an already-captured detail). `history` holds prior turns.
+        if reply and reply.strip() == _previous_reply(state):
+            reply = tmpl(REPETITION_TEMPLATES, active)
 
         if not reply or not reply.strip():
             # No usable reply (degraded/empty) → safe, flagged fallback.

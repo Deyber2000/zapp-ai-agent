@@ -2,11 +2,17 @@
 # Models, per-node effort, confidence thresholds, supported languages, and the pricing table
 # all live here so behaviour is tunable without code changes.
 
+# LLM provider (selects the isolated adapter — Constitution V). `anthropic` | `openai`.
+# Set to `openai` for live testing (the Anthropic account is out of credits); flip back to
+# `anthropic` + the claude-* models below once credits are available — no code change needed.
+provider: openai
+
 models:
   # Primary reasoning model (router, detector-assist, responder, verifier).
-  primary: claude-sonnet-5
+  primary: gpt-4o-mini
   # Swappable fallback for the hardest cases (higher quality, higher cost/latency).
-  fallback: claude-opus-5
+  fallback: gpt-4o
+  # Anthropic alternatives (used when provider: anthropic): primary claude-sonnet-5, fallback opus-5.
 
 # Adaptive-thinking effort per node: low for cheap routing/detection, medium for answering/verifying.
 node_effort:
@@ -53,6 +59,15 @@ pricing:
   claude-haiku-4-5:
     input_per_1m: 1.0
     output_per_1m: 5.0
+    temperature_capable: true
+  # OpenAI models (temperature-capable, unlike current Claude frontier models).
+  gpt-4o-mini:
+    input_per_1m: 0.15
+    output_per_1m: 0.60
+    temperature_capable: true
+  gpt-4o:
+    input_per_1m: 2.5
+    output_per_1m: 10.0
     temperature_capable: true
 
 # Guardrail policy (003). `semantic_enabled` toggles the optional LLM semantic layer (off by default,

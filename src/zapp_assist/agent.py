@@ -94,9 +94,15 @@ def _default_tools() -> ToolRegistry:
 
 
 def _default_llm(cfg: AppConfig) -> LLMClient:
-    # Imported lazily so the Anthropic SDK is only required when a real client is actually built
-    # (tests inject a mock and never reach here).
+    # Imported lazily so only the CHOSEN vendor SDK is required when a real client is built (tests
+    # inject a mock and never reach here). `config.provider` selects the adapter — the whole point
+    # of the `LLMClient` seam (Constitution V).
+    settings = get_settings()
+    if cfg.provider == "openai":
+        from .llm.openai_adapter import OpenAIAdapter
+
+        return OpenAIAdapter(api_key=settings.openai_api_key, config=cfg)
+
     from .llm.anthropic_adapter import AnthropicAdapter
 
-    settings = get_settings()
     return AnthropicAdapter(api_key=settings.anthropic_api_key, config=cfg)

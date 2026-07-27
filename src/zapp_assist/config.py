@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -71,6 +72,7 @@ class GuardrailsConfig(BaseModel):
 class AppConfig(BaseModel):
     """The fully-typed view of `config.yaml`."""
 
+    provider: Literal["anthropic", "openai"] = "anthropic"
     models: ModelsConfig
     node_effort: dict[str, str] = Field(default_factory=dict)
     thresholds: Thresholds = Field(default_factory=Thresholds)
@@ -97,6 +99,7 @@ class Settings(BaseSettings):
     )
 
     anthropic_api_key: str | None = None
+    openai_api_key: str | None = None
 
 
 @lru_cache(maxsize=8)

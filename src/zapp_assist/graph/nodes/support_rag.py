@@ -88,6 +88,7 @@ def support_rag(state: TurnState, deps: Deps) -> TurnState:
         return _decline(state, active, 0.3, start, {"grounded": False, "hits": len(docs)})
 
     state.draft_reply = answer.reply.strip()
+    state.reply_from_model = True  # free text — must pass reply-language verification (002)
     state.grounding_confidence = _score_to_confidence(top_score)
     add_span(
         state.trace,

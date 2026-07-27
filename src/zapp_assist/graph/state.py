@@ -72,3 +72,8 @@ class TurnState:
     reply_lang: str | None = None
     reply_match: bool | None = None
     reply_corrected: bool = False
+    # True only when `draft_reply` is free text the model generated (support_rag's grounded answer).
+    # Template-composed replies are correct-by-construction in `active_lang`, so they skip the
+    # (offline, lingua-based) reply-language check — which confuses es/pt on short strings and could
+    # otherwise overwrite a valid reply (e.g. a completed action's confirmation) with a review note.
+    reply_from_model: bool = False

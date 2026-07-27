@@ -28,7 +28,8 @@ Three cross-cutting concerns are specified separately and integrate at the point
 ## Scope & Boundaries
 
 **In scope**: turn lifecycle and the canonical output contract; intent routing; grounded support
-answers; onboarding data intake with signal-fusion normalization; state-changing actions with
+answers over a reproducibly-ingested knowledge base with hybrid (lexical + semantic) retrieval;
+onboarding data intake with signal-fusion normalization; state-changing actions with
 human-in-the-loop confirmation; multi-turn session memory; confidence scoring and review/escalation;
 graceful degradation under failure; the observable signals emitted per turn.
 
@@ -260,6 +261,25 @@ with a safe reply.
 - **FR-022**: The system MUST record, per turn, the latency, token usage, and estimated cost, and a
   trace of the steps taken, sufficient to debug and evaluate the turn without a debugger.
 
+**Knowledge ingestion & retrieval (grounding pipeline)**
+- **FR-023**: The knowledge base MUST be produced by a reproducible ingestion pipeline — validate
+  (schema / language / duplication / coverage) → chunk → enrich → build index — whose output is
+  committed in-repo and can be regenerated with no network or provider key in CI.
+- **FR-024**: Any provider-dependent enrichment (e.g. hypothetical-question or translation
+  generation) MUST be generated offline, cached, and committed, so that rebuilding the KB and running
+  retrieval are deterministic and keyless by default; a live provider is used only to refresh the
+  cache, never on the serving path.
+- **FR-025**: Retrieval MUST combine lexical and semantic signals when an embedding provider is
+  available and MUST degrade to deterministic lexical retrieval when it is not — without changing the
+  grounded-answer-or-decline behavior (FR-005/006).
+- **FR-026**: Retrieval MAY apply query-side enhancements (query expansion, attribute/metadata
+  filtering, reranking) to improve grounding precision; each enhancement MUST be independently
+  configurable (config-as-data) and MUST degrade safely to the base retriever when its provider or
+  signal is unavailable.
+- **FR-027**: Each knowledge document MUST carry structured metadata (at minimum a category and a
+  topic) sufficient for attribute-filtered retrieval; any retrieval enhancement that consumes an LLM
+  MUST report its token usage/cost to the per-turn trace (FR-022).
+
 ### Key Entities *(include if feature involves data)*
 
 - **Turn**: one user input and its produced result within a session.
@@ -271,7 +291,10 @@ with a safe reply.
   derived country + validity) used in fusion.
 - **Confidence Assessment**: the combined per-turn confidence and the reasons contributing to it.
 - **Guardrail Decision**: a triggered rule and the action taken (recorded in the contract).
-- **Knowledge Document**: a unit of grounding used to answer support questions.
+- **Knowledge Document**: a unit of grounding used to answer support questions; carries structured
+  metadata (category, topic) and the hypothetical questions it answers (used to strengthen retrieval).
+- **Knowledge Index**: the built, reproducible retrieval index the ingestion pipeline produces from
+  the knowledge documents (committed; rebuildable offline).
 - **Pending Action**: a state-changing operation awaiting confirmation (action + parameters + status).
 
 ## Success Criteria *(mandatory)*
@@ -293,6 +316,9 @@ with a safe reply.
   `002`/`004`).
 - **SC-008**: End-to-end turn latency and estimated cost per conversation are reported for every eval
   run, with p95 latency and cost within the configured thresholds.
+- **SC-009**: The committed knowledge index is reproducible from the committed sources by the
+  ingestion pipeline with no network or key; each retrieval enhancement can be toggled via config
+  without code changes and never lowers the grounded-answer/decline quality below SC-002.
 
 ## Assumptions
 
@@ -300,7 +326,9 @@ with a safe reply.
   and actions is a small, curated set sufficient to demonstrate each capability.
 - Backends for order/account actions are represented by a **deterministic mock** — no real production
   system is integrated; this is stated as a scope decision, not a hidden gap.
-- The knowledge source for grounded answers is a small curated seed set of policy/FAQ documents.
+- The knowledge source for grounded answers is a curated, multi-domain set of policy/FAQ documents
+  organized by category/topic and built by the in-repo ingestion pipeline (FR-023); it stays a
+  demonstration-scale corpus, not a production catalog.
 - Supported languages are ES, EN, and PT at minimum (detail in `002`).
 - Deterministic normalization is available for contact data (e.g., phone → canonical form + country);
   the specific mechanism is chosen at design time.

@@ -8,7 +8,8 @@
 
 Build the Zapp Assist core: a **deterministic, typed agent graph** that takes one user turn and
 produces the canonical JSON contract. The graph runs input guardrails → language detection (fused
-deterministic + LLM) → intent routing → one of {grounded support answer (RAG), state-changing action
+deterministic + LLM) → intent routing → one of {grounded support answer (hybrid RAG over a
+reproducibly-ingested KB), state-changing action
 with human-in-the-loop confirmation, onboarding intake with signal-fusion normalization, safe
 out-of-scope decline} → verification/confidence → output guardrails → contract assembly. The system
 is built for resilience (timeouts, bounded retries, malformed-response repair, model fallback →
@@ -28,14 +29,19 @@ provider-agnostic client; tools and guardrails are pluggable via registries.
 - `pydantic` v2 + `pydantic-settings` — typed contract, entities, and config-as-data.
 - `lingua-language-detector` — deterministic language detection, fused with the LLM signal.
 - `phonenumbers` — deterministic contact-data normalization (the signal-fusion tool; no network).
-- `rank-bm25` — deterministic lexical retrieval over the small curated KB (RAG grounding); no network,
-  no embedding provider. Documented as a deliberate simplification, upgradeable to embeddings.
+- `rank-bm25` — deterministic lexical retrieval (the sparse half of hybrid RAG); no network, always
+  available, so grounding degrades to it when no embedding key is present.
+- `openai` — embeddings (`text-embedding-3-small`) for the dense half of hybrid retrieval, isolated
+  behind an `Embedder` seam. Justified over a heavy local model (`sentence-transformers`) to keep the
+  footprint light and offline-degrading; the only vendor besides Anthropic, confined to two modules.
+- `numpy` — vector math (cosine similarity) for the dense retriever.
 - `structlog` — structured logs; per-turn `Trace` object carries spans + token/latency/cost.
 - `typer` + `rich` — CLI entry point and readable output.
 - Dev: `pytest`, `ruff`, `mypy`.
 
 **Storage**: In-memory session store behind a `SessionStore` interface (swappable for Redis/DB per
-Scalability). Knowledge base = curated Markdown/JSON files in-repo. Mock order/account backend =
+Scalability). Knowledge base = category/topic-tagged JSON documents built by an in-repo ingestion
+pipeline (validate → chunk → enrich → index), reproducible offline. Mock order/account backend =
 in-memory deterministic fixture.
 
 **Testing**: `pytest` (unit + contract + integration). Contract tests assert every turn is
@@ -75,7 +81,7 @@ scale is not precluded (Scalability, design posture).
 | # | Principle | How this design honors it |
 |---|-----------|---------------------------|
 | I | Scalability | Node/tool handlers are stateless pure functions of `(TurnState) → TurnState`; session state lives behind `SessionStore` (in-memory now, swappable). No shared mutable globals. Scaling path documented; autoscaling not built (design posture). |
-| II | Modularity | Explicit typed graph; `ToolRegistry` + `GuardrailRegistry`; provider-abstracted `LLMClient`; pluggable `LanguageDetector` and `SessionStore`. Adding a tool/guardrail/model touches no orchestrator code. LangGraph is wrapped, not leaked into nodes. |
+| II | Modularity | Explicit typed graph; `ToolRegistry` + `GuardrailRegistry`; provider-abstracted `LLMClient`; pluggable `LanguageDetector`, `SessionStore`, `Embedder`, and a config-selected `Retriever` (bm25/dense/hybrid/advanced). Adding a tool/guardrail/model/retriever touches no orchestrator code. LangGraph is wrapped, not leaked into nodes. |
 | III | Resilience & Security | `LLMClient` enforces timeout + bounded retries (SDK) + malformed-response repair + model fallback; failures → safe reply + `needs_review`. Untrusted input screened by input guardrails; tool inputs validated (strict schemas); secrets via env; HITL gate on state-changing actions. |
 | IV | Continuous Learning | Session memory carries prior turns + collected slots + pending action; `needs_review`/guardrail/low-confidence turns are emitted in a structured form that `004` folds into the eval dataset. Offline/eval-driven (design posture). |
 | V | Future-Proofing | Provider-agnostic `LLMClient` (adapter); LangGraph behind our `graph/` seam; config-as-data (models, thresholds, languages, tools, pricing); open standards (Pydantic/JSON Schema, structured logs). |
@@ -141,8 +147,18 @@ src/zapp_assist/
 ├── lang/
 │   └── detector.py           # lingua-based deterministic detector (baseline; deepened in 002)
 ├── rag/
-│   ├── store.py              # BM25 retriever over curated KB
-│   └── kb/                   # curated policy/FAQ docs
+│   ├── store.py              # BM25 (sparse) retriever over the curated KB
+│   ├── dense.py              # dense (semantic) retriever; HyPE-aware
+│   ├── hybrid.py             # sparse+dense fusion via Reciprocal Rank Fusion
+│   ├── advanced.py           # query expansion (HyDE / RAG-Fusion), Self-Query filter + rerank
+│   ├── embedder.py           # Embedder seam (OpenAI text-embedding-3-small)
+│   ├── retriever.py          # Retriever protocol + config-driven factory
+│   └── kb/                   # category/topic-tagged policy/FAQ docs (ingestion output)
+├── ingestion/
+│   ├── pipeline.py           # validate → chunk → enrich → build index (reproducible, offline)
+│   ├── validate.py           # schema / language / duplication / coverage checks
+│   ├── enrich.py             # offline LLM enrichment (HyPE questions, translation gap-fill), cached
+│   └── cli.py                # `zapp-ingest` console entry point
 ├── memory/
 │   └── session_store.py      # SessionStore interface + in-memory impl
 ├── obs/
@@ -168,4 +184,4 @@ registries/clients, never on LangGraph or the Anthropic SDK directly.
 |-----------------------|------------|--------------------------------------|
 | `temperature=0` not applied on the judge / deterministic paths | Current Claude models (`claude-sonnet-5`/`claude-opus-5`) reject `temperature` (HTTP 400). | Pinning the judge to an older temperature-accepting model (e.g. `claude-haiku-4-5`) would trade judgment quality for a knob that no longer exists on frontier models; instead determinism comes from structured JSON schema + low `effort` + a fixed rubric, and `temperature` is applied only where the model supports it. Documented in README. |
 | LangGraph dependency (vs hand-rolled graph) | User-selected; provides typed state, conditional edges, and checkpointing that would otherwise be re-implemented. | A hand-rolled graph was the alternative; LangGraph is wrapped behind `graph/` so the dependency does not leak into nodes and can be swapped, satisfying Modularity/Future-Proofing. |
-| BM25 retrieval (vs embeddings) | Deterministic, no network, no extra provider; sufficient to demonstrate grounded answering on a small KB. | Embedding-based retrieval needs a second provider (Anthropic has no embeddings API) or a heavy local model; documented as an upgrade path rather than a hidden gap. |
+| Hybrid + advanced retrieval (BM25 + OpenAI embeddings; HyPE, HyDE, RAG-Fusion; Self-Query filter + rerank) over pure BM25 | A single lexical index misses paraphrases and cross-lingual synonyms; hybrid fusion + query expansion + metadata filtering + reranking materially improve grounding recall/precision — the core value loop (US1). The `openai` embedder is the one added vendor, justified against a heavy local model. | Pure BM25 was the simpler baseline; it is kept as the deterministic floor the system degrades to offline. `sentence-transformers` (local embeddings) was rejected to keep the footprint light; `openai` sits behind an `Embedder` seam so the provider stays swappable. Every enhancement is config-gated and degrades to the BM25 floor when no key/LLM is present, so CI and the committed eval stay deterministic. |

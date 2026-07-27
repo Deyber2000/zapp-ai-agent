@@ -66,15 +66,22 @@ Alternatives considered.
 - **Alternatives**: `langdetect`/`fasttext` (less accurate on short strings / heavier); LLM-only
   detection (non-deterministic, no independent cross-check for fusion).
 
-## 7. Retrieval / grounding (RAG)
+## 7. Retrieval / grounding (hybrid RAG + advanced techniques)
 
-- **Decision**: BM25 (`rank-bm25`) over a small curated Markdown/JSON KB; retrieved snippets are
-  passed as grounding context and cited. If no snippet clears a score threshold → decline + set
-  `needs_review` (FR-006).
-- **Rationale**: Deterministic, no network, no embedding provider; enough to demonstrate grounded
-  answering and the "refuse rather than hallucinate" behavior.
-- **Alternatives**: Embedding retrieval — needs a second provider or heavy local model; documented as
-  an upgrade path, not a hidden gap.
+- **Decision**: Hybrid retrieval — BM25 (`rank-bm25`, sparse) fused with dense embeddings (`openai`
+  `text-embedding-3-small`, behind an `Embedder` seam) via Reciprocal Rank Fusion. Layered on the base
+  retriever, individually config-gated: HyPE (index the hypothetical questions each doc answers), HyDE
+  (draft a hypothetical answer as an extra query), RAG-Fusion (multi-phrasing + fuse), Self-Query (LLM
+  extracts category/topic filters from the doc metadata), and an LLM reranker. Retrieved snippets are
+  cited; nothing clearing the threshold → decline + `needs_review` (FR-006). Every enhancement degrades
+  to the BM25 floor when no key/LLM is present.
+- **Rationale**: A single lexical index misses paraphrases and cross-lingual synonyms; hybrid fusion +
+  query expansion + metadata filtering + reranking materially lift grounding recall/precision (US1),
+  while the offline BM25 floor keeps CI and the committed eval deterministic and keyless.
+- **Alternatives**: Pure BM25 — kept as the deterministic floor, not the ceiling. Local
+  `sentence-transformers` embeddings — rejected to keep the footprint light; the `Embedder` seam leaves
+  it a drop-in. Parent-document retrieval and query decomposition — considered but not adopted at this
+  KB scale; the retriever seam leaves them open.
 
 ## 8. Resilience
 
@@ -111,3 +118,16 @@ Alternatives considered.
   `.env`; `.env.example` documents `ANTHROPIC_API_KEY`. `ruff` + `mypy` + `pytest`.
 - **Rationale**: Reproducible, typed, config-as-data (Future-Proofing); secrets via env (Security).
 - **Alternatives**: `pip`/`requirements.txt` — fine, but `uv` is already available and faster/locked.
+
+## 12. Knowledge ingestion pipeline
+
+- **Decision**: A reproducible ingestion pipeline (`zapp-ingest`) builds the KB: validate
+  (schema / language / duplication / coverage) → chunk → enrich → build index. Provider-dependent
+  enrichment (HyPE questions, translation gap-fill) runs offline against the real provider, is cached
+  and committed, and never runs on the serving path; the committed index rebuilds with no network/key.
+- **Rationale**: Makes ingestion a first-class, traceable layer (Constitution VI/XI): the metadata and
+  hypothetical questions that strengthen retrieval get in-repo provenance and deterministic
+  reproducibility, rather than being hand-authored or produced ad hoc.
+- **Alternatives**: Hand-authoring enriched JSON — rejected: not reproducible, error-prone, unvalidated.
+  Generating enrichment at serving time — rejected: non-deterministic and adds latency, cost, and a key
+  dependency to every turn.

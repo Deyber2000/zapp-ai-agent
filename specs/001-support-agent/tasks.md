@@ -167,12 +167,52 @@ language + guardrails are in-scope for `001` (FR-019/FR-021) and are deepened la
 
 ---
 
+## Phase 9: Grounding Pipeline & Advanced Retrieval (US1 depth) — FR-023–FR-027
+
+**Goal**: Make grounding a first-class layer — a reproducible ingestion pipeline over a structured
+multi-domain KB, and hybrid + advanced retrieval on top — all config-gated and degrading to the
+deterministic BM25 floor offline (so CI and the committed eval stay keyless).
+
+**Independent Test**: `zapp-ingest` rebuilds the committed index from sources with no key (SC-009);
+with a key, a paraphrased/cross-lingual question that BM25 alone misses is recalled via
+hybrid+HyPE/HyDE/RAG-Fusion and correctly filtered by Self-Query; with no key, retrieval degrades to
+BM25 and grounded-answer/decline behavior is unchanged (FR-025).
+
+### Ingestion
+
+- [ ] T049 [US1] Implement the ingestion **validate** stage (schema / language / duplication / coverage) in `src/zapp_assist/ingestion/validate.py`
+- [ ] T050 [US1] Implement chunking + `KnowledgeDocument` assembly + deterministic **index build** in `src/zapp_assist/ingestion/pipeline.py`
+- [ ] T051 [US1] Implement **offline LLM enrichment** (HyPE questions + translation gap-fill), cached and committed so rebuilds are keyless/deterministic (FR-024), in `src/zapp_assist/ingestion/enrich.py`
+- [ ] T052 [US1] Add the **`zapp-ingest`** console entry point (build/validate the index; offline by default, `--refresh` re-runs enrichment against a live provider) in `src/zapp_assist/ingestion/cli.py` + `pyproject.toml`
+- [ ] T053 [P] [US1] Expand the KB to ~6 category/topic domains (delivery, account, payments, orders, returns, membership) × ES/EN/PT under `src/zapp_assist/rag/kb/`
+
+### Retrieval
+
+- [ ] T054 [US1] `Embedder` seam (OpenAI `text-embedding-3-small`) in `src/zapp_assist/rag/embedder.py`; `Retriever` protocol + config-driven factory in `src/zapp_assist/rag/retriever.py`
+- [ ] T055 [US1] Dense (semantic) retriever with **HyPE** representations (index each doc's hypothetical questions) in `src/zapp_assist/rag/dense.py`
+- [ ] T056 [US1] **Hybrid** retriever — BM25 + dense fused via Reciprocal Rank Fusion, degrading to BM25 offline — in `src/zapp_assist/rag/hybrid.py`
+- [ ] T057 [US1] **Advanced** query expansion — HyDE (hypothetical-answer query) + RAG-Fusion (multi-phrasing + fuse), reporting LLM cost to the trace via `on_llm` (FR-027) — in `src/zapp_assist/rag/advanced.py`
+- [ ] T058 [US1] **Self-Query** metadata filtering — LLM extracts category/topic filters, applied before retrieval; degrades to no-filter when no LLM (FR-026) — in `src/zapp_assist/rag/advanced.py`
+- [ ] T059 [US1] **LLM reranker** over the fused candidate set, config-gated, degrading to fusion order — in `src/zapp_assist/rag/advanced.py`
+- [ ] T060 [US1] Extend the `config.yaml` `retrieval:` block (mode, embedder, rrf_k, hype, hyde, rag_fusion, self_query, rerank) — every enhancement toggled as config-as-data (FR-026)
+
+### Tests & eval
+
+- [ ] T061 [P] [US1] Offline retrieval tests: HyPE recall, hybrid RRF, HyDE/RAG-Fusion expansion, Self-Query filter, rerank ordering, degrade-to-BM25, `on_llm` cost reporting in `tests/unit/test_retrieval_*.py`
+- [ ] T062 [P] [US1] Ingestion tests: validate rejects malformed docs; enrichment cache is deterministic; the committed index rebuilds keyless (SC-009) in `tests/unit/test_ingestion.py`
+- [ ] T063 [US1] Broaden the `004` eval dataset to exercise the new domains; keep the committed report deterministic (bm25-pinned) in `evals/dataset/`
+
+**Checkpoint**: grounding is a reproducible, observable, config-tunable layer; offline behavior is byte-for-byte unchanged.
+
+---
+
 ## Dependencies & Execution Order
 
 - **Setup (P1)** → **Foundational (P2)** blocks everything. **User stories (P3–P7)** all depend only on Foundational; they can then proceed in parallel or in priority order. **Polish (P8)** last.
 - **US1 (P1)** MVP — no dependency on other stories.
 - **US2/US3/US4** — independent branches off the shared pipeline; each independently testable.
 - **US5** — resilience mechanisms live in Foundational (T009/T017); its phase is fault-injection tests + fail-closed wiring + low-confidence handling.
+- **Phase 9 (Grounding pipeline)** — depends on Foundational + US1 (T023–T026); within it, ingestion (T049–T053) precedes the retrievers that consume the built index (T054–T060), then tests/eval (T061–T063). Every enhancement is independently config-gated, so partial adoption is safe.
 - Within a story: tests written first (should fail) → tool/store → node → routing.
 
 ## Parallel Opportunities
@@ -200,5 +240,6 @@ Task: "T013 guardrails/*"   Task: "T014 tools/registry.py"
 
 - `[P]` = different files, no incomplete dependency. `[US#]` maps tasks to stories for traceability.
 - Baseline language/guardrails here are deepened by specs `002`/`003`; the eval suite is `004`.
+- US1 grounding is deepened by Phase 9 (hybrid + advanced retrieval over a reproducible ingestion pipeline).
 - Verify tests fail before implementing; a task is "done" only when its acceptance criteria pass
   (Constitution: "It runs" is not "it is verified").

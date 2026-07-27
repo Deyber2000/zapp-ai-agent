@@ -76,14 +76,23 @@ present; `agrees=false` lowers `confidence_score` and sets `needs_review`.
 | `params` | `dict` | Validated against the tool's strict schema. |
 | `status` | `Literal["awaiting_confirmation","confirmed","executed","abandoned"]` | Execute only from `confirmed`; execute at most once. |
 
-## KnowledgeDocument (FR-005, FR-006)
+## KnowledgeDocument (FR-005, FR-006, FR-023, FR-027)
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | `str` | Stable id (cited in grounded answers). |
 | `title` | `str` | |
-| `text` | `str` | Body indexed by BM25. |
+| `text` | `str` | Body indexed by BM25 and embedded for dense retrieval. |
 | `lang` | `str` | Source language of the doc. |
+| `category` | `str` | Coarse domain (e.g. `delivery`, `account`, `payments`) — enables attribute-filtered (Self-Query) retrieval. |
+| `topic` | `str` | Finer topic within the category. |
+| `questions` | `list[str]` | Hypothetical questions the doc answers (HyPE); embedded as extra representations so a user question can match a stored *question*. Produced by the ingestion pipeline. |
+
+The retriever is selected by config (`bm25` | `dense` | `hybrid` | `advanced`): `hybrid` fuses BM25 +
+dense via RRF, and `advanced` layers query expansion (HyDE / RAG-Fusion), Self-Query metadata
+filtering, and reranking on top — each degrading to the BM25 floor when no key/LLM is present
+(FR-025/026). The enrichment fields (`questions`, translation gap-fills) are generated offline by the
+ingestion pipeline and committed, so the index rebuilds deterministically with no key (FR-024).
 
 ## Trace / Span — observability (FR-022)
 

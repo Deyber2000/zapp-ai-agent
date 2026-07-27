@@ -16,6 +16,7 @@ def _call(
     detected: str,
     *,
     conf: float = 0.9,
+    margin: float = 0.0,
     substantial: bool = True,
     pend: str | None = None,
     count: int = 0,
@@ -25,12 +26,14 @@ def _call(
         active_lang=active,
         detected=detected,
         confidence=conf,
+        margin=margin,
         substantial=substantial,
         pending_lang=pend,
         pending_count=count,
         supported=_SUP,
         lock_threshold=0.75,
         switch_min_confidence=0.75,
+        min_margin=0.15,
         switch_turns=turns,
     )
 
@@ -76,3 +79,21 @@ def test_a_different_new_candidate_restarts_the_count() -> None:
 def test_switch_turns_is_configurable() -> None:
     assert _call("es", "en", pend="en", count=1, turns=3) == ("es", "en", 2, False)
     assert _call("es", "en", pend="en", count=2, turns=3) == ("en", None, 0, True)
+
+
+# ---- margin over the runner-up rescues detections the absolute floor discards (002) ----
+
+
+def test_margin_locks_below_the_absolute_floor() -> None:
+    # es@0.672 (< 0.75) with a clear margin over the runner-up → still a first lock.
+    assert _call(None, "es", conf=0.672, margin=0.46) == ("es", None, 0, False)
+
+
+def test_no_lock_when_both_confidence_and_margin_are_low() -> None:
+    # Genuinely ambiguous: low absolute AND a small margin → not confident, stays unlocked.
+    assert _call(None, "es", conf=0.50, margin=0.05) == (None, None, 0, False)
+
+
+def test_margin_enables_a_switch_below_the_absolute_floor() -> None:
+    # A 2nd margin-confident es→pt turn completes a switch the absolute floor would stall.
+    assert _call("es", "pt", conf=0.70, margin=0.40, pend="pt", count=1) == ("pt", None, 0, True)

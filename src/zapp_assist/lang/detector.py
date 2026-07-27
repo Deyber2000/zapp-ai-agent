@@ -30,6 +30,10 @@ class LanguageResult(BaseModel):
     detected_lang: str
     active_lang: str
     lang_confidence: float
+    # Gap between the top language's confidence and the runner-up. lingua normalises mass across
+    # candidates, so es/pt split it and rarely clear an absolute floor even when unambiguous; a
+    # clear margin is the stronger signal that a detection is decisive.
+    margin: float = 0.0
 
 
 @runtime_checkable
@@ -70,9 +74,13 @@ class LinguaDetector:
                 detected_lang=self._fallback, active_lang=self._fallback, lang_confidence=0.0
             )
         top = values[0]
+        runner_up = float(values[1].value) if len(values) > 1 else 0.0
         lang = _LANGUAGE_TO_ISO.get(top.language, self._fallback)
         return LanguageResult(
-            detected_lang=lang, active_lang=lang, lang_confidence=float(top.value)
+            detected_lang=lang,
+            active_lang=lang,
+            lang_confidence=float(top.value),
+            margin=round(float(top.value) - runner_up, 4),
         )
 
     def language_of(self, text: str) -> tuple[str, float]:
@@ -116,12 +124,14 @@ def apply_switch_policy(
     active_lang: str | None,
     detected: str,
     confidence: float,
+    margin: float,
     substantial: bool,
     pending_lang: str | None,
     pending_count: int,
     supported: list[str],
     lock_threshold: float,
     switch_min_confidence: float,
+    min_margin: float,
     switch_turns: int,
 ) -> tuple[str | None, str | None, int, bool]:
     """Language lock / persist / switch policy (002). Pure and deterministic (Principle X).
@@ -136,10 +146,17 @@ def apply_switch_policy(
     matching / weak / short / unsupported turn keeps the lock and resets the accumulator; a
     confident, substantial turn in a *different* supported language accumulates, and switches at
     ``switch_turns`` consecutive such turns — so a single foreign phrase never flips the language.
+
+    "Confident" is ``confidence >= threshold`` OR ``margin >= min_margin``: lingua normalises mass
+    across candidates, so es/pt split it and rarely clear an absolute floor even when unambiguous —
+    a clear margin over the runner-up rescues those (a right answer the absolute rule discards).
     """
 
+    def confident(threshold: float) -> bool:
+        return confidence >= threshold or margin >= min_margin
+
     if active_lang is None:
-        if detected in supported and confidence >= lock_threshold:
+        if detected in supported and confident(lock_threshold):
             return detected, None, 0, False  # first lock (not a "switch")
         return None, None, 0, False  # stay unlocked; caller uses fallback
 
@@ -147,7 +164,7 @@ def apply_switch_policy(
         not substantial
         or detected == active_lang
         or detected not in supported
-        or confidence < switch_min_confidence
+        or not confident(switch_min_confidence)
     ):
         return active_lang, None, 0, False  # weak / match → keep lock, reset accumulator
 
@@ -185,5 +202,8 @@ def fuse(
             confidence = max(0.0, confidence * 0.6)  # divergence lowers confidence
 
     return LanguageResult(
-        detected_lang=lang, active_lang=lang, lang_confidence=round(confidence, 4)
+        detected_lang=lang,
+        active_lang=lang,
+        lang_confidence=round(confidence, 4),
+        margin=deterministic.margin,
     )

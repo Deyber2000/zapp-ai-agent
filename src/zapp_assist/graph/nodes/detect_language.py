@@ -81,12 +81,14 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
         active_lang=state.session.active_lang,
         detected=deterministic.detected_lang,
         confidence=deterministic.lang_confidence,
+        margin=deterministic.margin,
         substantial=substantial,
         pending_lang=state.session.pending_switch_lang,
         pending_count=state.session.pending_switch_count,
         supported=cfg.languages.supported,
         lock_threshold=thr.language_lock,
         switch_min_confidence=thr.language_switch_min_confidence,
+        min_margin=thr.language_confident_min_margin,
         switch_turns=thr.language_switch_turns,
     )
     state.session.active_lang = locked

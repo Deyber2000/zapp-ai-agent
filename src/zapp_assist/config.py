@@ -48,6 +48,11 @@ class Thresholds(BaseModel):
     # reply length to bother verifying the reply's language (short replies are treated in-language).
     language_switch_min_confidence: float = 0.75
     language_switch_turns: int = 2
+    # A detection is "confident" (to lock or switch) when its absolute confidence clears the floor
+    # OR its margin over the runner-up clears this. lingua normalises mass across candidates, so
+    # es/pt split it and rarely reach an absolute 0.75 even when unambiguous — the margin rescues
+    # those (a right answer the floor would discard; ~35% of es first-turns failed to lock).
+    language_confident_min_margin: float = 0.15
     # A switch needs >= this many words. Single-word borrowed tokens (ok/thanks/obrigado) read as
     # confident in another language but are socially borrowed, and the confidence floor can't gate
     # them; a genuine short switch is always >= 2 words. (sí/no are already confidence-blocked.)

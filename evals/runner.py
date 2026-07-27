@@ -21,9 +21,12 @@ from .scripted_llm import build_scripted_llm
 
 
 def _config_for(case: EvalCase, base: AppConfig) -> AppConfig:
-    # Per-case toggle of the guardrail semantic layer; everything else = the agent's config.
+    # Per-case toggle of the guardrail semantic layer. Retrieval is pinned to BM25 so the eval stays
+    # deterministic/offline (no embedding calls) and the committed report is reproducible; hybrid
+    # retrieval quality is validated live, not in the scripted eval.
     guardrails = base.guardrails.model_copy(update={"semantic_enabled": case.semantic_enabled})
-    return base.model_copy(update={"guardrails": guardrails})
+    retrieval = base.retrieval.model_copy(update={"mode": "bm25"})
+    return base.model_copy(update={"guardrails": guardrails, "retrieval": retrieval})
 
 
 def run_case(case: EvalCase, base_config: AppConfig | None = None) -> RunRecord:

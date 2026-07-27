@@ -15,8 +15,8 @@ from ..lang.detector import LanguageDetector
 from ..llm.client import LLMClient
 from ..tools.registry import ToolRegistry
 
-if TYPE_CHECKING:  # avoid importing rank_bm25 here
-    from ..rag.store import BM25Store
+if TYPE_CHECKING:  # avoid importing rank_bm25 / retriever backends here
+    from ..rag.retriever import Retriever
 
 
 @dataclass
@@ -26,4 +26,4 @@ class Deps:
     detector: LanguageDetector
     guardrails: GuardrailRegistry
     tools: ToolRegistry
-    rag: BM25Store | None = None
+    rag: Retriever | None = None

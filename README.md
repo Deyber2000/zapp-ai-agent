@@ -18,7 +18,7 @@ next (see [Roadmap](#roadmap)).
 
 | Capability | Behavior |
 | --- | --- |
-| **Grounded support** (US1) | Answers only from a curated KB (BM25 retrieval); **declines instead of inventing** when there is no grounding. |
+| **Grounded support** (US1) | Answers only from a curated KB via **hybrid retrieval** (BM25 + dense embeddings, RRF-fused); **declines instead of inventing** when there is no grounding. |
 | **Onboarding intake** (US2) | Slot-fills contact data across turns; normalizes phone → **E.164 + country** deterministically and **fuses** it with the LLM's reading. |
 | **Actions with HITL** (US3) | State-changing actions (cancel/reschedule) are **restated and confirmed before executing**, exactly once. |
 | **Safety envelope** | **Layered guardrails** — deterministic regex rules + an optional semantic classifier (deterministic-first) catch off-topic / unsafe / injection input (incl. paraphrased); PII in output is redacted; policy is config-driven; every decision records rule/category/severity/action/layer. |
@@ -129,7 +129,7 @@ src/zapp_assist/
   graph/              # build.py (LangGraph) + state.py + nodes/*
   guardrails/         # registry + baseline rules
   lang/               # lingua detector + fuse()
-  rag/                # BM25 store + curated KB (12 ES/EN/PT docs)
+  rag/                # hybrid retrieval (BM25 + dense/embeddings, RRF) + curated KB (12 ES/EN/PT docs)
   tools/              # registry + normalize (phonenumbers) + mock_backend
   memory/             # session store (swappable interface)
   obs/                # Trace / Span / cost accounting
@@ -214,9 +214,13 @@ correctness-critical paths (phone normalization, language detection, action conf
 
 **Other trade-offs:**
 
-- **BM25, not embeddings** — the KB is small and curated; lexical retrieval is deterministic, offline,
-  and enough to demonstrate grounding + "decline rather than hallucinate". The `BM25Store` interface
-  is the documented swap-point for embeddings.
+- **Hybrid retrieval (BM25 + dense)** — retrieval fuses lexical **BM25** with **dense embeddings**
+  (OpenAI `text-embedding-3-small`, behind an `Embedder` seam mirroring the LLM adapter) via
+  **Reciprocal Rank Fusion**, so semantic paraphrases the lexical index misses are still recalled
+  (verified live: a query with zero lexical overlap returned `[]` from BM25 but the right docs from
+  the dense side). It **degrades to BM25** when no embedding key is present, keeping the tests, the
+  eval, and CI offline and deterministic. A local sentence-transformers embedder is a documented
+  drop-in behind the same seam.
 - **Mock backend** — order/account actions run against a deterministic in-memory backend (a stated
   scope decision, not a hidden gap). HITL/exactly-once semantics are real; the persistence is mocked.
 - **In-memory session store** — behind a `SessionStore` protocol, swappable for Redis/DB with no
@@ -264,5 +268,8 @@ This project was built with an AI copilot (expected by the brief). Notable calls
   the next, so the git history reads as intentional SDD.
 - The copilot's **`temperature=0`** default was rejected for current models (see above) — it would
   400; determinism is achieved structurally instead.
-- Suggestions to reach for **embeddings / a vector DB** were rejected as over-engineering for a small
-  curated KB; BM25 behind a swappable interface is the honest scope.
+- **Embeddings** were initially rejected as over-engineering for a small curated KB (BM25 behind a
+  swappable interface). That was later **revisited**: hybrid retrieval (BM25 + dense embeddings via
+  RRF) was added deliberately to showcase RAG engineering — and because it **degrades to BM25 offline**,
+  the determinism/no-key argument still holds while gaining semantic recall. A full vector DB is still
+  out of scope for 12 docs (an in-memory cosine over the embedded set is enough).

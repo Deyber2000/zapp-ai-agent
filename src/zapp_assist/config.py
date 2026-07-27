@@ -54,6 +54,17 @@ class Thresholds(BaseModel):
     reply_verify_min_chars: int = 15
 
 
+class RetrievalConfig(BaseModel):
+    """RAG retrieval policy (hybrid RAG). `hybrid` fuses BM25 + dense; degrades to BM25 when no
+    embedding key is available (offline/CI)."""
+
+    mode: Literal["bm25", "dense", "hybrid"] = "hybrid"
+    embedder: Literal["openai"] = "openai"
+    top_k: int = 3
+    rrf_k: int = 60
+    dense_min_similarity: float = 0.30
+
+
 class RulePolicy(BaseModel):
     """Per-rule policy override (003). Absent fields keep the rule's code defaults."""
 
@@ -79,6 +90,7 @@ class AppConfig(BaseModel):
     languages: LanguagesConfig
     pricing: dict[str, ModelPricing] = Field(default_factory=dict)
     guardrails: GuardrailsConfig = Field(default_factory=GuardrailsConfig)
+    retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
 
     def pricing_for(self, model: str) -> ModelPricing | None:
         return self.pricing.get(model)

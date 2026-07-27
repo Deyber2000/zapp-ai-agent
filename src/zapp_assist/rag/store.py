@@ -76,6 +76,10 @@ class BM25Store:
             docs.append(KnowledgeDocument.model_validate(payload))
         return cls(docs, threshold=threshold)
 
+    @property
+    def documents(self) -> list[KnowledgeDocument]:
+        return self._docs
+
     def search(self, query: str, top_k: int = 3) -> list[tuple[KnowledgeDocument, float]]:
         if self._bm25 is None or not query.strip():
             return []

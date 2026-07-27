@@ -79,3 +79,13 @@ pricing:
 guardrails:
   semantic_enabled: false
   policy: {}
+
+# Retrieval (hybrid RAG). `hybrid` fuses BM25 (lexical) + dense (embeddings) via Reciprocal Rank
+# Fusion. It DEGRADES to BM25 when no embedding key is available (offline/CI), so tests and the eval
+# stay deterministic; a live run with OPENAI_API_KEY set uses the full dense+sparse fusion.
+retrieval:
+  mode: hybrid          # bm25 | dense | hybrid
+  embedder: openai      # OpenAI text-embedding-3-small (local sentence-transformers is a drop-in)
+  top_k: 3
+  rrf_k: 60             # Reciprocal Rank Fusion constant
+  dense_min_similarity: 0.30   # cosine floor for a dense hit to count (keeps the decline gate)

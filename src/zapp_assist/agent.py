@@ -23,7 +23,7 @@ from .lang.detector import LanguageDetector, LinguaDetector
 from .llm.client import LLMClient
 from .memory.session_store import InMemorySessionStore, SessionStore
 from .obs.trace import Trace
-from .rag.store import KB_DIR, BM25Store
+from .rag.retriever import Retriever, build_retriever
 from .tools.mock_backend import MockBackend, register_backend_tools
 from .tools.normalize import register_normalize_tools
 from .tools.registry import ToolRegistry
@@ -45,7 +45,7 @@ class Agent:
         detector: LanguageDetector | None = None,
         guardrails: GuardrailRegistry | None = None,
         tools: ToolRegistry | None = None,
-        rag: BM25Store | None = None,
+        rag: Retriever | None = None,
     ) -> Agent:
         cfg = config or load_config()
         resolved_llm = llm or _default_llm(cfg)
@@ -56,7 +56,7 @@ class Agent:
             detector=detector or LinguaDetector(cfg.languages.supported, cfg.languages.fallback),
             guardrails=guardrails or default_registry(cfg, semantic),
             tools=tools or _default_tools(),
-            rag=rag or BM25Store.from_kb_dir(KB_DIR, cfg.thresholds.grounding_min_score),
+            rag=rag or build_retriever(cfg, get_settings().openai_api_key),
         )
         return cls(deps, store or InMemorySessionStore())
 

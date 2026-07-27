@@ -66,10 +66,13 @@ class RetrievalConfig(BaseModel):
     # Index each doc's hypothetical questions on the dense side (HyPE). Offline-safe: without an
     # embedding key the dense retriever is disabled anyway, so this has no effect on the CI path.
     hype: bool = True
-    # LLM query expansion (opt-in; needs a key — degrades to the base retriever without one).
+    # LLM query expansion / filtering / reranking (opt-in; need a key — each degrades to the base
+    # retriever without one, and every enhancement is independently toggleable, config-as-data).
     rag_fusion: bool = False  # rewrite the query into N phrasings, RRF-fuse their retrievals
     rag_fusion_queries: int = 3
     hyde: bool = False  # draft a hypothetical answer passage and use it as an extra query
+    self_query: bool = False  # LLM predicts a category filter from the query (metadata filter)
+    rerank: bool = False  # LLM reranks the fused candidates by how well they answer the question
 
 
 class RulePolicy(BaseModel):

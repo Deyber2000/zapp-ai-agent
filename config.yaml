@@ -94,3 +94,5 @@ retrieval:
   rag_fusion: false     # rewrite the query into N phrasings and RRF-fuse their retrievals
   rag_fusion_queries: 3
   hyde: false           # draft a hypothetical answer passage and use it as an extra query
+  self_query: false     # LLM classifies the query into a KB category, then filters candidates
+  rerank: false         # LLM reranks the fused candidates by how well they answer the question

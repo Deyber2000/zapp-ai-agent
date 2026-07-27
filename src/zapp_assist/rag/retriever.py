@@ -40,10 +40,11 @@ def build_retriever(
     store = BM25Store.from_kb_dir(KB_DIR, config.thresholds.grounding_min_score)
     base = _base_retriever(config, store, api_key)
 
-    # RAG-Fusion / HyDE need an LLM; without one (or when both are off) return the base unchanged.
-    if llm is not None and (rc.rag_fusion or rc.hyde):
+    # The advanced techniques need an LLM; without one (or all off) return the base unchanged.
+    if llm is not None and (rc.rag_fusion or rc.hyde or rc.self_query or rc.rerank):
         from .advanced import AdvancedRetriever
 
+        categories = sorted({d.category for d in store.documents if d.category})
         return AdvancedRetriever(
             base,
             llm,
@@ -53,6 +54,9 @@ def build_retriever(
             hyde=rc.hyde,
             rrf_k=rc.rrf_k,
             top_k=rc.top_k,
+            self_query=rc.self_query,
+            rerank=rc.rerank,
+            categories=categories,
         )
     return base
 

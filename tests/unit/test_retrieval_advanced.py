@@ -5,7 +5,13 @@ and degrade-to-base. All offline: a deterministic keyword stub embedder and a sc
 from __future__ import annotations
 
 from zapp_assist.llm.client import LLMResult, Usage
-from zapp_assist.rag.advanced import AdvancedRetriever, HypotheticalDoc, QueryVariants
+from zapp_assist.rag.advanced import (
+    AdvancedRetriever,
+    HypotheticalDoc,
+    QueryFilter,
+    QueryVariants,
+    Reranking,
+)
 from zapp_assist.rag.dense import DenseRetriever
 from zapp_assist.rag.store import KnowledgeDocument
 
@@ -25,8 +31,10 @@ class _StubEmbedder:
         return out
 
 
-def _doc(doc_id: str, text: str, questions: list[str]) -> KnowledgeDocument:
-    return KnowledgeDocument(id=doc_id, title=doc_id, text=text, lang="en", questions=questions)
+def _doc(doc_id: str, text: str, questions: list[str], category: str = "") -> KnowledgeDocument:
+    return KnowledgeDocument(
+        id=doc_id, title=doc_id, text=text, lang="en", questions=questions, category=category
+    )
 
 
 # ---- HyPE ----------------------------------------------------------------------------------------
@@ -129,3 +137,72 @@ def test_expansion_reports_usage_via_on_llm() -> None:
     seen: list[tuple[Usage, float]] = []
     adv.search("alpha", on_llm=lambda usage, cost: seen.append((usage, cost)))
     assert len(seen) == 1  # the one RAG-Fusion call was reported for the trace
+
+
+# ---- Self-Query (metadata filter) ----------------------------------------------------------------
+
+
+class _SchemaLLM:
+    """Returns scripted output per requested schema; anything else degrades."""
+
+    def __init__(self, *, category: str = "", order: list[int] | None = None) -> None:
+        self._category = category
+        self._order = order or []
+        self.calls = 0
+
+    def complete(self, *, schema=None, **_):  # type: ignore[no-untyped-def]
+        self.calls += 1
+        if schema is QueryFilter:
+            return LLMResult(parsed=QueryFilter(category=self._category), usage=Usage())
+        if schema is Reranking:
+            return LLMResult(parsed=Reranking(order=self._order), usage=Usage())
+        return LLMResult(degraded=True, usage=Usage())
+
+
+def test_self_query_filters_candidates_by_category() -> None:
+    delivery = _doc("D", "reschedule delivery", [], category="delivery")
+    payments = _doc("P", "refund to card", [], category="payments")
+    base = _RecordingBase({"reschedule": delivery, "refund": payments})
+    adv = AdvancedRetriever(
+        base, _SchemaLLM(category="delivery"), model="m",  # type: ignore[arg-type]
+        rag_fusion=False, n_queries=3, hyde=False,
+        self_query=True, categories=["delivery", "payments"],
+    )
+    ids = {doc.id for doc, _ in adv.search("reschedule or refund")}
+    assert ids == {"D"}  # the payments candidate is dropped by the predicted category
+
+
+def test_self_query_degrades_to_no_filter_when_prediction_empty() -> None:
+    delivery = _doc("D", "reschedule delivery", [], category="delivery")
+    payments = _doc("P", "refund to card", [], category="payments")
+    base = _RecordingBase({"reschedule": delivery, "refund": payments})
+    adv = AdvancedRetriever(
+        base, _SchemaLLM(category=""), model="m",  # type: ignore[arg-type]
+        rag_fusion=False, n_queries=3, hyde=False,
+        self_query=True, categories=["delivery", "payments"],
+    )
+    ids = {doc.id for doc, _ in adv.search("reschedule or refund")}
+    assert ids == {"D", "P"}  # no confident category → no filter applied
+
+
+# ---- Rerank --------------------------------------------------------------------------------------
+
+
+def test_rerank_reorders_the_fused_candidates() -> None:
+    a, b = _doc("A", "alpha", []), _doc("B", "beta", [])
+    base = _RecordingBase({"alpha": a, "beta": b})  # base returns [A, B] for "alpha beta"
+    adv = AdvancedRetriever(
+        base, _SchemaLLM(order=[1, 0]), model="m",  # type: ignore[arg-type]
+        rag_fusion=False, n_queries=3, hyde=False, rerank=True,
+    )
+    assert [doc.id for doc, _ in adv.search("alpha beta")] == ["B", "A"]  # rerank promoted B
+
+
+def test_rerank_degrades_to_fused_order_when_empty() -> None:
+    a, b = _doc("A", "alpha", []), _doc("B", "beta", [])
+    base = _RecordingBase({"alpha": a, "beta": b})
+    adv = AdvancedRetriever(
+        base, _SchemaLLM(order=[]), model="m",  # type: ignore[arg-type]
+        rag_fusion=False, n_queries=3, hyde=False, rerank=True,
+    )
+    assert [doc.id for doc, _ in adv.search("alpha beta")] == ["A", "B"]  # unchanged fused order

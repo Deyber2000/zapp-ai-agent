@@ -1,18 +1,21 @@
-"""Advanced retrieval: LLM query expansion (RAG-Fusion + HyDE) over a base retriever.
+"""Advanced retrieval: LLM query expansion, metadata filtering, and reranking over a base retriever.
 
-Wraps any base `Retriever` and widens the query before retrieval, then fuses the per-variant ranked
-lists with Reciprocal Rank Fusion (the same RRF used by the hybrid retriever):
+Wraps any base `Retriever` and improves grounding in up to four config-gated stages:
 
 - **RAG-Fusion** — the LLM rewrites the question into N alternative phrasings (synonyms, different
-  ways a customer asks); each is retrieved and the lists are RRF-fused, lifting docs found by *any*
-  phrasing. Directly targets the lexical/vocabulary gap.
-- **HyDE** (Hypothetical Document Embeddings) — the LLM drafts a short plausible answer passage and
-  that passage is used as an extra query, so retrieval matches answer-shaped text.
+  ways a customer asks); each is retrieved and the ranked lists are RRF-fused, lifting docs found by
+  *any* phrasing. Targets the lexical/vocabulary gap.
+- **HyDE** (Hypothetical Document Embeddings) — the LLM drafts a short plausible answer passage used
+  as an extra query, so retrieval matches answer-shaped text.
+- **Self-Query** — the LLM classifies the question into one KB `category`, then the fused candidates
+  are filtered to that category (a metadata filter *derived from the query*). It never filters down
+  to nothing: an empty result falls back to the unfiltered ranking.
+- **Rerank** — the LLM reorders the top fused candidates by how well each *answers* the question,
+  correcting lexical mis-rankings before the final trim to `top_k`.
 
-Both are opt-in (`config.retrieval.rag_fusion` / `.hyde`). Every LLM call degrades safely: on a
-timeout / malformed / refused result the variant is simply dropped, so with no key (or the mock in
-tests) expansion yields nothing and this collapses to a single base search — the offline path is
-unchanged. Expansion token usage is reported through the `on_llm` callback so it lands in the trace.
+Every stage is opt-in and degrades safely: on a timeout / malformed / refused LLM result the stage
+is a no-op, so with no key (or the mock in tests) this collapses to a single base search — the
+offline path is unchanged. All LLM token usage is reported via `on_llm` so it reaches the trace.
 """
 
 from __future__ import annotations
@@ -22,14 +25,14 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 
-from ..llm.client import LLMClient, Msg
+from ..llm.client import LLMClient
 from .hybrid import reciprocal_rank_fusion
 from .store import KnowledgeDocument
 
 if TYPE_CHECKING:
     from .retriever import Retriever
 
-_CANDIDATES = 10  # per-variant depth to fuse over (wider than top_k so RRF has signal)
+_CANDIDATES = 10  # per-variant retrieval depth / rerank pool (wider than top_k for fusion signal)
 
 _FUSION_SYSTEM = (
     "You expand a customer's support question to improve retrieval. Produce {n} alternative "
@@ -40,6 +43,15 @@ _HYDE_SYSTEM = (
     "Write a brief, plausible support knowledge-base passage (1-2 sentences) that would directly "
     "answer the user's question, in the user's language. It is used only to improve retrieval, so "
     "it need not be factually correct — just realistic."
+)
+_SELFQUERY_SYSTEM = (
+    "Classify the customer's support question into exactly one category from this list: "
+    "{categories}. Reply with only the single best-matching category id. If none clearly fits, "
+    "reply with an empty string."
+)
+_RERANK_SYSTEM = (
+    "You rerank candidate support documents by how well each one ANSWERS the user's question. "
+    "Reply with the document indices ordered from most to least relevant."
 )
 
 
@@ -55,8 +67,20 @@ class HypotheticalDoc(BaseModel):
     passage: str = ""
 
 
+class QueryFilter(BaseModel):
+    """Self-Query output: the KB category the question belongs to (empty = no confident filter)."""
+
+    category: str = ""
+
+
+class Reranking(BaseModel):
+    """Rerank output: candidate indices ordered from most to least relevant."""
+
+    order: list[int] = []
+
+
 class AdvancedRetriever:
-    """Expands the query (RAG-Fusion / HyDE) then RRF-fuses per-variant retrievals over a base."""
+    """Query expansion + Self-Query filter + rerank over a base retriever (all config-gated)."""
 
     def __init__(
         self,
@@ -69,6 +93,9 @@ class AdvancedRetriever:
         hyde: bool,
         rrf_k: int = 60,
         top_k: int = 3,
+        self_query: bool = False,
+        rerank: bool = False,
+        categories: list[str] | None = None,
     ) -> None:
         self._base = base
         self._llm = llm
@@ -78,6 +105,9 @@ class AdvancedRetriever:
         self._hyde = hyde
         self._rrf_k = rrf_k
         self._top_k = top_k
+        self._self_query = self_query
+        self._rerank = rerank
+        self._categories = [c.lower() for c in (categories or [])]
 
     def search(
         self,
@@ -102,8 +132,14 @@ class AdvancedRetriever:
             return []
 
         rrf = reciprocal_rank_fusion(ranked_lists, self._rrf_k)
-        ranked_ids = sorted(by_id, key=lambda i: rrf.get(i, 0.0), reverse=True)[:limit]
-        return [by_id[i] for i in ranked_ids]
+        ranked_ids = sorted(by_id, key=lambda i: rrf.get(i, 0.0), reverse=True)
+
+        if self._self_query:
+            ranked_ids = self._filter_by_category(query, ranked_ids, by_id, on_llm)
+        if self._rerank:
+            ranked_ids = self._rerank_candidates(query, ranked_ids, by_id, on_llm)
+
+        return [by_id[i] for i in ranked_ids[:limit]]
 
     def _expand(self, query: str, on_llm: Callable[..., None] | None) -> list[str]:
         """Original query plus any HyDE passage and RAG-Fusion phrasings (de-duped, ordered)."""
@@ -125,11 +161,10 @@ class AdvancedRetriever:
         return unique
 
     def _paraphrases(self, query: str, on_llm: Callable[..., None] | None) -> list[str]:
-        messages: list[Msg] = [{"role": "user", "content": query}]
         res = self._llm.complete(
             model=self._model,
             system=_FUSION_SYSTEM.format(n=self._n_queries),
-            messages=messages,
+            messages=[{"role": "user", "content": query}],
             schema=QueryVariants,
             effort="low",
         )
@@ -141,11 +176,10 @@ class AdvancedRetriever:
         return [q.strip() for q in parsed.queries if q.strip()][: self._n_queries]
 
     def _hypothetical(self, query: str, on_llm: Callable[..., None] | None) -> str | None:
-        messages: list[Msg] = [{"role": "user", "content": query}]
         res = self._llm.complete(
             model=self._model,
             system=_HYDE_SYSTEM,
-            messages=messages,
+            messages=[{"role": "user", "content": query}],
             schema=HypotheticalDoc,
             effort="low",
         )
@@ -155,3 +189,75 @@ class AdvancedRetriever:
         if res.degraded or not isinstance(parsed, HypotheticalDoc) or not parsed.passage.strip():
             return None
         return parsed.passage.strip()
+
+    def _filter_by_category(
+        self,
+        query: str,
+        ranked_ids: list[str],
+        by_id: dict[str, tuple[KnowledgeDocument, float]],
+        on_llm: Callable[..., None] | None,
+    ) -> list[str]:
+        """Keep only candidates in the LLM-predicted category; never narrow to an empty result."""
+
+        category = self._predict_category(query, on_llm)
+        if not category:
+            return ranked_ids
+        matching = [i for i in ranked_ids if by_id[i][0].category.lower() == category]
+        return matching or ranked_ids
+
+    def _predict_category(self, query: str, on_llm: Callable[..., None] | None) -> str:
+        if not self._categories:
+            return ""
+        res = self._llm.complete(
+            model=self._model,
+            system=_SELFQUERY_SYSTEM.format(categories=", ".join(self._categories)),
+            messages=[{"role": "user", "content": query}],
+            schema=QueryFilter,
+            effort="low",
+        )
+        if on_llm:
+            on_llm(res.usage, res.cost_usd)
+        parsed = res.parsed
+        if res.degraded or not isinstance(parsed, QueryFilter):
+            return ""
+        category = parsed.category.strip().lower()
+        return category if category in self._categories else ""
+
+    def _rerank_candidates(
+        self,
+        query: str,
+        ranked_ids: list[str],
+        by_id: dict[str, tuple[KnowledgeDocument, float]],
+        on_llm: Callable[..., None] | None,
+    ) -> list[str]:
+        """Ask the LLM to reorder the top pool by answer-relevance; degrade to the fused order."""
+
+        pool = ranked_ids[:_CANDIDATES]
+        if len(pool) < 2:
+            return ranked_ids
+        listing = "\n".join(
+            f"[{i}] {by_id[did][0].title}: {by_id[did][0].text[:160]}" for i, did in enumerate(pool)
+        )
+        res = self._llm.complete(
+            model=self._model,
+            system=_RERANK_SYSTEM,
+            messages=[{"role": "user", "content": f"Question: {query}\n\nDocuments:\n{listing}"}],
+            schema=Reranking,
+            effort="low",
+        )
+        if on_llm:
+            on_llm(res.usage, res.cost_usd)
+        parsed = res.parsed
+        if res.degraded or not isinstance(parsed, Reranking) or not parsed.order:
+            return ranked_ids
+
+        seen: set[int] = set()
+        reordered: list[str] = []
+        for idx in parsed.order:
+            if 0 <= idx < len(pool) and idx not in seen:
+                seen.add(idx)
+                reordered.append(pool[idx])
+        for i, did in enumerate(pool):  # append any indices the LLM omitted, original order
+            if i not in seen:
+                reordered.append(did)
+        return reordered + ranked_ids[len(pool):]

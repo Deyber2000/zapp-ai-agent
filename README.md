@@ -44,8 +44,12 @@ uv run zapp-assist chat        # interactive multi-turn (keeps active_lang + mem
 # Evaluate the agent (no key needed) — one command → one report + CI exit code
 uv run zapp-eval              # writes evals/report.{json,md}; exits non-zero if any metric fails
 
+# (Re)build the knowledge base (no key needed — served from the committed enrichment cache)
+uv run zapp-ingest validate   # schema / language / duplication / coverage checks (CI gate)
+uv run zapp-ingest build      # validate -> chunk -> enrich -> build; --refresh to enrich new docs live
+
 # Verify everything (no key needed)
-uv run pytest                 # 115 tests: unit + contract + integration (001–004)
+uv run pytest                 # 141 tests: unit + contract + integration (001–004)
 uv run ruff check . && uv run mypy src
 ```
 
@@ -129,7 +133,8 @@ src/zapp_assist/
   graph/              # build.py (LangGraph) + state.py + nodes/*
   guardrails/         # registry + baseline rules
   lang/               # lingua detector + fuse()
-  rag/                # hybrid retrieval (BM25 + dense, RRF) + HyPE/HyDE/RAG-Fusion + KB (12 ES/EN/PT)
+  ingestion/          # zapp-ingest pipeline: validate -> chunk -> enrich (HyPE) -> build; enrichment cache
+  rag/                # hybrid retrieval (BM25 + dense, RRF) + HyPE/HyDE/RAG-Fusion/Self-Query/rerank + KB (6 domains, ES/EN/PT)
   tools/              # registry + normalize (phonenumbers) + mock_backend
   memory/             # session store (swappable interface)
   obs/                # Trace / Span / cost accounting
@@ -214,19 +219,27 @@ correctness-critical paths (phone normalization, language detection, action conf
 
 **Other trade-offs:**
 
-- **Hybrid retrieval (BM25 + dense), with advanced expansion** — retrieval fuses lexical **BM25**
-  with **dense embeddings** (OpenAI `text-embedding-3-small`, behind an `Embedder` seam mirroring the
-  LLM adapter) via **Reciprocal Rank Fusion**, so semantic paraphrases the lexical index misses are
-  still recalled. Three advanced techniques layer on top, each config-gated and each degrading safely:
-  **HyPE** (index the *hypothetical questions* each KB doc answers, so a user question matches a
-  question — always-on, precomputed, offline-safe), and opt-in **HyDE** (embed a drafted hypothetical
-  answer) + **RAG-Fusion** (RRF-fuse retrievals of N LLM-generated query rephrasings). Verified live:
-  for a Spanish paraphrase BM25 returned `[]` while hybrid+HyPE recalled the right doc at higher
+- **Knowledge ingestion pipeline** — the KB is *built*, not hand-maintained. `zapp-ingest` runs
+  **validate** (schema / language / duplication / coverage) → **chunk** → **enrich** → **build**.
+  Provider-dependent enrichment (the HyPE hypothetical questions each doc answers; translation
+  gap-fill) is generated offline, **cached in a committed content-addressed cache, and never runs on
+  the serving path** — so rebuilding the KB is deterministic and keyless in CI (`zapp-ingest build`),
+  while `zapp-ingest build --refresh` regenerates only cache-missing docs against the provider. The
+  corpus spans six support domains (delivery, account, payments, orders, returns, membership) in
+  ES/EN/PT, each doc tagged with `category`/`topic` metadata.
+- **Hybrid retrieval + advanced techniques** — retrieval fuses lexical **BM25** with **dense
+  embeddings** (OpenAI `text-embedding-3-small`, behind an `Embedder` seam mirroring the LLM adapter)
+  via **Reciprocal Rank Fusion**. Five techniques layer on top, each independently config-gated and
+  each degrading safely: **HyPE** (index the *hypothetical questions* each doc answers, so a user
+  question matches a *question* — always-on, precomputed, offline-safe), **HyDE** (embed a drafted
+  hypothetical answer), **RAG-Fusion** (RRF-fuse retrievals of N LLM-generated rephrasings),
+  **Self-Query** (the LLM classifies the query into a `category` and filters candidates by that
+  metadata), and an **LLM reranker** (reorder the fused candidates by answer relevance). Verified
+  live: for a Spanish paraphrase BM25 returned `[]` while hybrid+HyPE recalled the right doc at higher
   confidence, and HyDE+RAG-Fusion lifted it further. The whole stack **degrades to BM25** with no key,
-  keeping the tests, the eval, and CI offline and deterministic. Techniques deliberately *not* used
-  (over-engineering for a 12-doc single-topic KB): parent-document retrieval, query decomposition, a
-  standalone semantic router (intent routing already exists). A local sentence-transformers embedder
-  is a documented drop-in behind the same seam.
+  keeping the tests, the eval, and CI offline and deterministic. Not adopted at this corpus size:
+  parent-document retrieval and query decomposition (the retriever seam leaves them open); a local
+  sentence-transformers embedder is a documented drop-in behind the same seam.
 - **Mock backend** — order/account actions run against a deterministic in-memory backend (a stated
   scope decision, not a hidden gap). HITL/exactly-once semantics are real; the persistence is mocked.
 - **In-memory session store** — behind a `SessionStore` protocol, swappable for Redis/DB with no
@@ -274,8 +287,8 @@ This project was built with an AI copilot (expected by the brief). Notable calls
   the next, so the git history reads as intentional SDD.
 - The copilot's **`temperature=0`** default was rejected for current models (see above) — it would
   400; determinism is achieved structurally instead.
-- **Embeddings** were initially rejected as over-engineering for a small curated KB (BM25 behind a
-  swappable interface). That was later **revisited**: hybrid retrieval (BM25 + dense embeddings via
-  RRF) was added deliberately to showcase RAG engineering — and because it **degrades to BM25 offline**,
-  the determinism/no-key argument still holds while gaining semantic recall. A full vector DB is still
-  out of scope for 12 docs (an in-memory cosine over the embedded set is enough).
+- **Retrieval depth was scoped deliberately** — a hybrid + advanced-RAG stack (BM25 + dense via RRF;
+  HyPE, HyDE, RAG-Fusion, Self-Query, rerank) over a reproducibly-ingested, metadata-tagged KB, with
+  **everything degrading to a deterministic BM25 floor** so CI stays keyless. Heavier options — a
+  hosted vector DB, parent-document retrieval, query decomposition — were left out as unwarranted at
+  this corpus size; the `Embedder`/`Retriever` seams leave them a drop-in, not a rewrite.

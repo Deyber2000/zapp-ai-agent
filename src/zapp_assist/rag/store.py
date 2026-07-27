@@ -1,8 +1,9 @@
-"""BM25 lexical retrieval over a small curated KB (Constitution X; research.md §7).
+"""BM25 lexical retrieval over the curated KB (Constitution X; research.md §7).
 
-Deterministic, offline, no embedding provider — enough to demonstrate grounded answering and the
-"decline rather than hallucinate" behaviour. Documented upgrade path: swap for embeddings behind
-this same interface. Tokenisation folds diacritics and case so ES/PT queries match reliably.
+The sparse, deterministic, offline half of hybrid retrieval — and the floor the retrieval stack
+degrades to when no embedding key is present, so grounded answering and the "decline rather than
+hallucinate" behaviour never depend on a network. Tokenisation folds diacritics and case so ES/PT
+queries match reliably.
 """
 
 from __future__ import annotations

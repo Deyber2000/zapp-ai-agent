@@ -20,7 +20,7 @@ from ..obs.trace import Trace
 if TYPE_CHECKING:  # avoid importing rank_bm25 at graph-state import time
     from ..rag.store import KnowledgeDocument
 
-Intent = Literal["support", "onboarding", "action", "out_of_scope", "clarify"]
+Intent = Literal["support", "onboarding", "action", "out_of_scope", "clarify", "smalltalk"]
 
 
 class NormalizationSignal(BaseModel):

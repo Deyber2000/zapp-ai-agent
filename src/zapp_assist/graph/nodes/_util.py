@@ -29,6 +29,21 @@ GUARDRAIL_DECLINE_TEMPLATES = {
     "en": "I can only help with Zapp orders, deliveries, and account questions.",
     "pt": "Só posso ajudar com pedidos, entregas e perguntas sobre sua conta Zapp.",
 }
+# Courtesy / greetings / meta — acknowledged warmly and redirected (NOT refused as out-of-scope).
+SMALLTALK_TEMPLATES = {
+    "es": "¡Con gusto! Estoy aquí para ayudarte con tus pedidos, entregas y cuenta de Zapp. "
+    "¿En qué más puedo ayudarte?",
+    "en": "Glad to help! I'm here for your Zapp orders, deliveries, and account — "
+    "what else can I do for you?",
+    "pt": "Com prazer! Estou aqui para ajudar com seus pedidos, entregas e conta Zapp. "
+    "Em que mais posso ajudar?",
+}
+# Shown instead of re-emitting the exact previous reply (e.g. re-running a completed onboarding).
+REPETITION_TEMPLATES = {
+    "es": "Ya está todo listo con eso. ¿Hay algo más en lo que pueda ayudarte?",
+    "en": "You're all set there — is there anything else I can help you with?",
+    "pt": "Está tudo certo com isso. Posso ajudar com mais alguma coisa?",
+}
 SAFE_FALLBACK_TEMPLATES = {
     "es": "Lo siento, tuve un problema temporal y no pude completar eso. "
     "Lo marqué para un compañero.",

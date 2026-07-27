@@ -28,6 +28,7 @@ from .nodes import (
     onboarding,
     out_of_scope,
     route_intent,
+    smalltalk,
     support_rag,
     verify_confidence,
     verify_reply_language,
@@ -87,6 +88,8 @@ def _after_intent(state: GraphState) -> str:
         return "action_plan"
     if ts.intent == "out_of_scope":
         return "out_of_scope"
+    if ts.intent == "smalltalk":
+        return "smalltalk"
     # clarify (draft set in route_intent) or any unmapped intent → straight to verify/assemble.
     return "verify"
 
@@ -106,6 +109,7 @@ def build_graph(deps: Deps) -> Any:
     graph.add_node("action_plan", _wrap("action_plan", action_plan, deps))
     graph.add_node("action_execute", _wrap("action_execute", action_execute, deps))
     graph.add_node("out_of_scope", _wrap("out_of_scope", out_of_scope, deps))
+    graph.add_node("smalltalk", _wrap("smalltalk", smalltalk, deps))
     graph.add_node(
         "verify_reply_language", _wrap("verify_reply_language", verify_reply_language, deps)
     )
@@ -128,6 +132,7 @@ def build_graph(deps: Deps) -> Any:
             "action_plan": "action_plan",
             "action_execute": "action_execute",
             "out_of_scope": "out_of_scope",
+            "smalltalk": "smalltalk",
             "verify": "verify_reply_language",
         },
     )
@@ -137,6 +142,7 @@ def build_graph(deps: Deps) -> Any:
     graph.add_edge("action_plan", "verify_reply_language")
     graph.add_edge("action_execute", "verify_reply_language")
     graph.add_edge("out_of_scope", "verify_reply_language")
+    graph.add_edge("smalltalk", "verify_reply_language")
     graph.add_edge("verify_reply_language", "verify_confidence")
     graph.add_edge("verify_confidence", "guardrail_out")
     graph.add_edge("guardrail_out", "assemble")

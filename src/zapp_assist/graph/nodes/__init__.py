@@ -11,6 +11,7 @@ from .guardrail_out import guardrail_out
 from .onboarding import OnboardingExtraction, onboarding
 from .out_of_scope import out_of_scope
 from .route_intent import IntentSignal, route_intent
+from .smalltalk import smalltalk
 from .support_rag import GroundedAnswer, support_rag
 from .verify_confidence import verify_confidence
 from .verify_reply_language import RewrittenReply, verify_reply_language
@@ -25,6 +26,7 @@ __all__ = [
     "onboarding",
     "out_of_scope",
     "route_intent",
+    "smalltalk",
     "support_rag",
     "verify_confidence",
     "verify_reply_language",

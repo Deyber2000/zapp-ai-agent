@@ -31,6 +31,7 @@ dev = [
 [project.scripts]
 zapp-assist = "zapp_assist.cli:app"
 zapp-eval = "evals.cli:app"
+zapp-ingest = "zapp_assist.ingestion.cli:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -41,6 +42,7 @@ packages = ["src/zapp_assist", "evals"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "src/zapp_assist/rag/kb" = "zapp_assist/rag/kb"
+"src/zapp_assist/ingestion/enrichment_cache.json" = "zapp_assist/ingestion/enrichment_cache.json"
 "evals/dataset" = "evals/dataset"
 "evals/eval_config.yaml" = "evals/eval_config.yaml"
 

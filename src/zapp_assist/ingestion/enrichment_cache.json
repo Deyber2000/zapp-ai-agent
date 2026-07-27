@@ -1,0 +1,110 @@
+{
+  "account_close_en": {
+    "hash": "e7269540f6d23543d69dedc6e411048e7b8a431f8d465969be8e3f29424320c7",
+    "questions": [
+      "How do I delete my Zapp account?",
+      "Can I cancel my account permanently?",
+      "Is closing my account reversible?",
+      "What happens to my open orders if I close my account?"
+    ]
+  },
+  "account_close_es": {
+    "hash": "fbc5e1d9d34200fe1de2011c5697e6a61ee5b53b70f9024bf933b9dda37b58db",
+    "questions": [
+      "¿Cómo elimino mi cuenta de Zapp?",
+      "¿Puedo cancelar mi cuenta de forma permanente?",
+      "¿Se puede revertir el cierre de la cuenta?",
+      "¿Qué pasa con mis pedidos activos si cierro la cuenta?"
+    ]
+  },
+  "account_close_pt": {
+    "hash": "e7eefd3f188fb3908ed62e3a761f05a759a4a1cdca1e62ce2007fb9cd2a5f879",
+    "questions": [
+      "Como excluo minha conta Zapp?",
+      "Posso cancelar minha conta permanentemente?",
+      "Dá para reverter o encerramento da conta?",
+      "O que acontece com meus pedidos ativos se eu encerrar a conta?"
+    ]
+  },
+  "account_password_en": {
+    "hash": "dc49acaef9ee04a29b44b4bfade47332cefee905b9d3e873b38471d07fa35a5a",
+    "questions": [
+      "I forgot my password, how do I reset it?",
+      "How do I change my Zapp password?",
+      "The reset link expired, what do I do?",
+      "Will you tell me my password over chat?"
+    ]
+  },
+  "account_password_es": {
+    "hash": "531c095bca46db08ddc6136194ea80d367232ae6df1cbc4208406de0321f08b3",
+    "questions": [
+      "Olvidé mi contraseña, ¿cómo la restablezco?",
+      "¿Cómo cambio la contraseña de mi cuenta Zapp?",
+      "El enlace de restablecimiento caducó, ¿qué hago?",
+      "¿Me dan la contraseña por chat?"
+    ]
+  },
+  "account_password_pt": {
+    "hash": "cfa95e2838568486112dd55822f0cc47369c1ebd48607002a2735889702a2799",
+    "questions": [
+      "Esqueci minha senha, como redefino?",
+      "Como troco a senha da minha conta Zapp?",
+      "O link de redefinição expirou, o que faço?",
+      "Vocês me passam a senha pelo chat?"
+    ]
+  },
+  "delivery_reschedule_en": {
+    "hash": "79c9b2042dae543cfff95f741299f444a594674bb72bd686251edf107ac584e8",
+    "questions": [
+      "Can I change my delivery time?",
+      "How do I move my parcel to a different day?",
+      "Is there a fee to reschedule a shipment?",
+      "How late can I change my delivery window?"
+    ]
+  },
+  "delivery_reschedule_es": {
+    "hash": "933408dbf1e01ecce52cc0b39ae427ff654939c8de43fa760760133c8ee916be",
+    "questions": [
+      "¿Puedo cambiar la hora de mi entrega?",
+      "¿Cómo muevo mi paquete a otro día?",
+      "¿Cuesta algo reprogramar un envío?",
+      "¿Hasta cuándo puedo cambiar la ventana de entrega?"
+    ]
+  },
+  "delivery_reschedule_pt": {
+    "hash": "f472d75e3ebb543d79d46dc393d0cab7a0beed528312a33c00565baa9acb3828",
+    "questions": [
+      "Posso mudar o horário da minha entrega?",
+      "Como movo minha encomenda para outro dia?",
+      "Tem taxa para reagendar uma remessa?",
+      "Até quando posso mudar a janela de entrega?"
+    ]
+  },
+  "delivery_tracking_en": {
+    "hash": "f027a53080b1757ba5511300a55f2c7bc8e3b75a1e2ef04cbd8cf965898f0c30",
+    "questions": [
+      "Where is my order right now?",
+      "How do I follow my courier on the map?",
+      "Why can't I see tracking yet?",
+      "How do I check the status of my package?"
+    ]
+  },
+  "delivery_tracking_es": {
+    "hash": "af5ef880ff407d6155271634e17a0ab61fd536db68e37a56a4250e6aede89666",
+    "questions": [
+      "¿Dónde está mi pedido ahora?",
+      "¿Cómo sigo al repartidor en el mapa?",
+      "¿Por qué aún no veo el seguimiento?",
+      "¿Cómo consulto el estado de mi paquete?"
+    ]
+  },
+  "delivery_tracking_pt": {
+    "hash": "f0d0e4133efe5e2952fa0943a30460483975854524cfd714688c215ce9ff23b9",
+    "questions": [
+      "Onde está meu pedido agora?",
+      "Como acompanho o entregador no mapa?",
+      "Por que ainda não vejo o rastreamento?",
+      "Como verifico o status da minha encomenda?"
+    ]
+  }
+}

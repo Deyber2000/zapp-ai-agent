@@ -26,6 +26,7 @@ def out_of_scope(state: TurnState, deps: Deps) -> TurnState:
             rule="out_of_scope",
             action="refuse",
             severity="low",
+            layer="semantic",  # model-classified backstop (see docstring), not deterministic
             detail="request outside the Zapp support domain",
         )
     )

@@ -142,8 +142,10 @@ active language, a detection-confidence value, and whether the reply matched the
 
 ### Edge Cases
 
-- **Short input** ("ok", "sí", "👍"): keep the locked active language; do not re-decide from too little
-  signal.
+- **Short borrowed token** ("ok", "thanks", "obrigado", "👍"): a single-word token that reads as
+  confident in another language but is socially borrowed across all three — keep the locked active
+  language (a switch requires ≥ 2 words). ("sí"/"no" never reach this gate; they are already blocked
+  by the confidence floor.)
 - **Code-switching within one message** ("necesito help con mi order"): pick a single active language
   by the dominant/deterministic signal and do not thrash on subsequent turns.
 - **Sustained switch vs one-off**: distinguish a genuine language change (sustained, confident) from a

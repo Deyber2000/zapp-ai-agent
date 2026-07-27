@@ -35,8 +35,11 @@ thresholds:
   language_switch_min_confidence: 0.75
   # Consecutive confident turns in a different supported language required to switch active_lang.
   language_switch_turns: 2
-  # A turn shorter than this cannot drive a language switch (stops "ok"/"sí" from thrashing).
-  language_switch_min_chars: 12
+  # A switch needs >= this many words. Single-word borrowed tokens (ok, thanks, obrigado) read as
+  # confident in another language but are socially borrowed — the confidence floor can't catch them;
+  # a genuine short switch ("i need help", "in english") is always >= 2 words. (sí/no are
+  # already confidence-blocked, so the old char floor never saw them.)
+  language_switch_min_words: 2
   # Replies shorter than this skip language verification (too short to detect reliably).
   reply_verify_min_chars: 15
 

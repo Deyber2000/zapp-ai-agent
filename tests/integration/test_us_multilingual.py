@@ -110,6 +110,10 @@ PT3 = "Preciso de ajuda com a minha entrega de amanhã de manhã."
 EN1 = "I would like to continue this conversation in English now please."
 EN2 = "Can you help me reschedule my delivery for tomorrow afternoon?"
 EN3 = "Thanks a lot for your help today, I really appreciate it."
+# Short but genuine switches: confidently English, >= 2 words, yet < 12 chars each — so the old
+# char>=12 floor blocked them on length while the word>=2 floor lets a sustained pair switch.
+EN_SHORT_A = "in english"  # en@0.95, 2 words, 10 chars
+EN_SHORT_B = "i need help"  # en@0.93, 3 words, 11 chars
 
 
 def _last_user(call: MockCall) -> str:
@@ -156,6 +160,18 @@ def test_sustained_switch_updates_active_language_and_reply() -> None:
     # the REPLY follows the policy: Portuguese before the switch, English after
     assert _lang_of(r2.reply) == "pt"
     assert _lang_of(r3.reply) == "en"
+
+
+def test_sustained_switch_on_short_genuine_turns() -> None:
+    # Two short (< 12 char) but multi-word English turns → sustained switch pt→en. Under the old
+    # char floor these were blocked on length and the conversation never switched; the word floor
+    # fixes it (002 US2 acceptance scenario 2 for users whose switch messages run short).
+    agent = _agent(_coherence_llm())
+    r1 = agent.run_turn("sw-short", PT1)  # locked pt
+    r2 = agent.run_turn("sw-short", EN_SHORT_A)  # 1st short EN → accumulating (was length-blocked)
+    r3 = agent.run_turn("sw-short", EN_SHORT_B)  # 2nd short EN → sustained switch
+    assert [r1.active_lang, r2.active_lang, r3.active_lang] == ["pt", "pt", "en"]
+    assert _lang_of(r3.reply) == "en"  # the reply follows the switch
 
 
 def test_one_off_foreign_phrase_does_not_switch() -> None:

@@ -48,9 +48,10 @@ class Thresholds(BaseModel):
     # reply length to bother verifying the reply's language (short replies are treated in-language).
     language_switch_min_confidence: float = 0.75
     language_switch_turns: int = 2
-    # A turn shorter than this cannot drive a language switch (too little signal to trust — stops a
-    # one-word "ok"/"sí" from thrashing the session language).
-    language_switch_min_chars: int = 12
+    # A switch needs >= this many words. Single-word borrowed tokens (ok/thanks/obrigado) read as
+    # confident in another language but are socially borrowed, and the confidence floor can't gate
+    # them; a genuine short switch is always >= 2 words. (sí/no are already confidence-blocked.)
+    language_switch_min_words: int = 2
     reply_verify_min_chars: int = 15
 
 

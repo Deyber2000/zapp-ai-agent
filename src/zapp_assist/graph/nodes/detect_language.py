@@ -73,9 +73,10 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
     # Language lock/persist/switch policy (002). The deterministic detection drives the choice
     # (Principle X); an LLM disagreement only lowers `lang_confidence` via fuse(). A locked language
     # persists across weak/short turns and switches only on sustained, confident intent — a single
-    # foreign phrase never flips it. Short turns cannot drive a switch (too little signal).
+    # foreign phrase never flips it. A switch needs >= min_words: single-word borrowed tokens
+    # (ok/thanks/obrigado) read as confident in another language but are socially borrowed.
     thr = cfg.thresholds
-    substantial = len(state.user_text.strip()) >= thr.language_switch_min_chars
+    substantial = len(state.user_text.split()) >= thr.language_switch_min_words
     locked, pending_lang, pending_count, switched = apply_switch_policy(
         active_lang=state.session.active_lang,
         detected=deterministic.detected_lang,

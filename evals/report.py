@@ -8,16 +8,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .judge import Judge, RuleBasedJudge
 from .metrics import (
     cost_per_conversation,
     guardrail_precision,
     guardrail_recall,
+    judge_quality,
     language_fidelity,
     latency_percentiles,
     task_success,
     task_success_by_capability,
 )
-from .models import EvalCase, EvalReport, EvalThresholds, JudgeVerdict, MetricResult, RunRecord
+from .models import EvalCase, EvalReport, EvalThresholds, MetricResult, RunRecord
 
 _EVALS_DIR = Path(__file__).resolve().parent
 
@@ -26,15 +28,20 @@ def build_report(
     records: list[RunRecord],
     cases: list[EvalCase],
     thresholds: EvalThresholds,
+    judge: Judge | None = None,
     extra_metrics: list[MetricResult] | None = None,
-    verdicts: list[JudgeVerdict] | None = None,
     note: str = "deterministic (scripted model + rule-based judge)",
 ) -> EvalReport:
+    judge = judge or RuleBasedJudge()
+    by_id = {c.id: c for c in cases}
+    verdicts = [judge.score(by_id[rec.case_id], rec) for rec in records]
+
     metrics = [
         task_success(records, cases, thresholds),
         language_fidelity(records, cases, thresholds),
         guardrail_recall(records, cases, thresholds),
         guardrail_precision(records, cases, thresholds),
+        judge_quality(verdicts, thresholds),
         *(extra_metrics or []),
     ]
     p50, p95 = latency_percentiles(records)
@@ -43,7 +50,7 @@ def build_report(
         total_cases=len(records),
         metrics=metrics,
         by_capability=task_success_by_capability(records, cases),
-        judge=verdicts or [],
+        judge=verdicts,
         latency_p50_ms=p50,
         latency_p95_ms=p95,
         cost_per_convo=cost_per_conversation(records),

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .models import EvalCase, EvalThresholds, MetricResult, RunRecord
+from .models import EvalCase, EvalThresholds, JudgeVerdict, MetricResult, RunRecord
 
 
 def flagged(record: RunRecord) -> bool:
@@ -148,6 +148,28 @@ def guardrail_precision(
         passed=denom > 0 and score >= thresholds.guardrail_precision_min,
         detail=f"TP={tp} FP={fp}",
         applicable=denom > 0,
+    )
+
+
+def judge_quality(verdicts: list[JudgeVerdict], thresholds: EvalThresholds) -> MetricResult:
+    """Average LLM-as-judge rubric score (out of 5) across all verdicts."""
+
+    if not verdicts:
+        return MetricResult(
+            name="judge_quality",
+            score=0.0,
+            threshold=thresholds.judge_min,
+            passed=False,
+            detail="no verdicts",
+            applicable=False,
+        )
+    avg = sum(v.mean() for v in verdicts) / len(verdicts)
+    return MetricResult(
+        name="judge_quality",
+        score=round(avg, 3),
+        threshold=thresholds.judge_min,
+        passed=avg >= thresholds.judge_min,
+        detail=f"avg of {len(verdicts)} (out of 5)",
     )
 
 

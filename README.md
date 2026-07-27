@@ -197,6 +197,19 @@ correctness-critical paths (phone normalization, language detection, action conf
   node changes.
 - **Deterministic confirmation** — action confirmation uses a yes/no lexicon (ES/EN/PT) rather than
   an LLM, deliberately: safety over cleverness for irreversible operations.
+- **In-repo eval, not LangSmith/Langfuse** — spec `004`'s eval is a small, self-contained suite rather
+  than a hosted platform. The deliverable is a *gate*, not a dashboard: **one command → one committed,
+  diffable report + a non-zero CI exit**, and it must run **deterministically with no key/network** so
+  the committed report is reproducible in CI. LangSmith is SaaS (account + network + data egress);
+  Langfuse self-host needs Postgres/Docker — both are the wrong weight for that, and wiring their
+  tracing SDK would mean *instrumenting the agent*, which contradicts `004`'s "pure observer, changes
+  nothing in the agent" stance and the vendor-isolation principle. We already emit a structured
+  per-turn `Trace`, so a framework's core value (capturing traces) is covered; the metric definitions
+  (task-success-per-capability, guardrail precision/recall, language fidelity) are bespoke to our
+  contract either way. **Production path:** the `Trace` is export-ready and the LLM-as-judge is a
+  swappable seam, so Langfuse (OSS, self-hostable → data stays in-house) is the natural
+  observability/trends backend to add later — complementary to this deterministic CI gate, not a
+  replacement.
 
 **Known limitations:**
 

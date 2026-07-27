@@ -10,6 +10,8 @@ from __future__ import annotations
 from tests.support.mock_llm import MockCall, MockLLMClient
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
+from zapp_assist.graph.nodes._action import ACTION_DONE
+from zapp_assist.graph.nodes._util import LANG_MISMATCH_TEMPLATES
 from zapp_assist.tools.mock_backend import MockBackend, register_backend_tools
 from zapp_assist.tools.normalize import register_normalize_tools
 from zapp_assist.tools.registry import ToolRegistry
@@ -67,6 +69,27 @@ def test_action_asks_confirmation_then_executes_exactly_once() -> None:
     # Exactly-once: the pending action was cleared, and the backend op is idempotent anyway.
     backend.cancel("A1001")
     assert backend.state_changes == 1
+
+
+def test_spanish_cancel_executes_and_reports_success_not_a_language_failure() -> None:
+    # Defect B (mutate-then-report-failure): the short ES success line "Listo. Completé: cancelar
+    # el pedido A1001." is mislabeled Portuguese by lingua; offline, the reply-language correction
+    # can't repair it, so the verifier used to overwrite it with a language-failure note + review —
+    # AFTER the backend had already committed. The action must report the success it actually did.
+    # (Authored templates are now trusted and skip the reply-language check.)
+    agent, backend = _agent(_action_llm(action="cancel_order", order_id="A1001", lang="es"))
+
+    r1 = agent.run_turn("s-es-cancel", "quiero cancelar mi pedido A1001")
+    assert backend.state_changes == 0  # proposal only, no mutation yet
+    assert r1.active_lang == "es"
+
+    r2 = agent.run_turn("s-es-cancel", "sí, confirmo")
+    assert backend.state_changes == 1  # executed exactly once
+    assert backend.lookup("A1001").status == "cancelled"
+    assert r2.active_lang == "es"
+    assert r2.reply == ACTION_DONE["es"].format(summary="cancelar el pedido A1001")
+    assert r2.reply != LANG_MISMATCH_TEMPLATES["es"]  # NOT a language failure after a real mutation
+    assert r2.needs_review is False
 
 
 def test_reschedule_confirmed_updates_the_window() -> None:

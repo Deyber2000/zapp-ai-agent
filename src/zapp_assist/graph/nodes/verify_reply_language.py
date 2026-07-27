@@ -50,6 +50,17 @@ def verify_reply_language(state: TurnState, deps: Deps) -> TurnState:
         state.reply_match = True if reply else None
         return _span(state, start, active=active, skipped_short=bool(reply))
 
+    # Authored per-language templates are already in `active_lang` by construction; only free text
+    # the model produced can drift. Verifying a template can only mislabel it (lingua confuses es/pt
+    # on short strings) and, offline, replace a correct reply with a review message — e.g. overwrite
+    # a completed state-changing action's success confirmation *after* the backend committed. So we
+    # trust templates and verify only model-generated replies.
+    if not state.reply_from_model:
+        state.reply_lang, state.reply_match = active, True
+        return _span(
+            state, start, active=active, reply_lang=active, reply_match=True, trusted_template=True
+        )
+
     reply_lang, _conf = deps.detector.language_of(reply)
     state.reply_lang = reply_lang
     if reply_lang == active:

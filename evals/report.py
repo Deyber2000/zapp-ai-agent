@@ -10,11 +10,13 @@ from pathlib import Path
 
 from .judge import Judge, RuleBasedJudge
 from .metrics import (
+    cost_metric,
     cost_per_conversation,
     guardrail_precision,
     guardrail_recall,
     judge_quality,
     language_fidelity,
+    latency_metric,
     latency_percentiles,
     task_success,
     task_success_by_capability,
@@ -42,6 +44,8 @@ def build_report(
         guardrail_recall(records, cases, thresholds),
         guardrail_precision(records, cases, thresholds),
         judge_quality(verdicts, thresholds),
+        latency_metric(records, thresholds),
+        cost_metric(records, thresholds),
         *(extra_metrics or []),
     ]
     p50, p95 = latency_percentiles(records)

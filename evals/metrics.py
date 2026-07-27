@@ -196,3 +196,34 @@ def cost_per_conversation(records: list[RunRecord]) -> float:
 
     costs = [sum(t.cost_usd for t in rec.traces) for rec in records if rec.traces]
     return round(sum(costs) / len(costs), 6) if costs else 0.0
+
+
+def latency_metric(records: list[RunRecord], thresholds: EvalThresholds) -> MetricResult:
+    """Gated p95 latency (ms). Lower is better; the number is environment-dependent (informational),
+    but the pass/fail against a generous ceiling is stable."""
+
+    _p50, p95 = latency_percentiles(records)
+    return MetricResult(
+        name="latency_p95_ms",
+        score=p95,
+        threshold=thresholds.latency_p95_max_ms,
+        passed=bool(records) and p95 <= thresholds.latency_p95_max_ms,
+        higher_is_better=False,
+        detail="per-turn p95",
+        applicable=bool(records),
+    )
+
+
+def cost_metric(records: list[RunRecord], thresholds: EvalThresholds) -> MetricResult:
+    """Gated mean cost per conversation (USD). Deterministic (fixed token accounting)."""
+
+    cost = cost_per_conversation(records)
+    return MetricResult(
+        name="cost_per_convo",
+        score=cost,
+        threshold=thresholds.cost_per_convo_max,
+        passed=bool(records) and cost <= thresholds.cost_per_convo_max,
+        higher_is_better=False,
+        detail="mean per case",
+        applicable=bool(records),
+    )

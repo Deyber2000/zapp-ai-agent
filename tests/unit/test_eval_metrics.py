@@ -7,10 +7,12 @@ not-applicable handling.
 from __future__ import annotations
 
 from evals.metrics import (
+    cost_metric,
     cost_per_conversation,
     guardrail_precision,
     guardrail_recall,
     language_fidelity,
+    latency_metric,
     latency_percentiles,
 )
 from evals.models import EvalCase, EvalThresholds, Expected, MockScript, RunRecord
@@ -102,3 +104,22 @@ def test_latency_percentiles_and_cost() -> None:
     p50, p95 = latency_percentiles(records)
     assert p50 == 20.0 and p95 == 100.0
     assert cost_per_conversation(records) == round((0.001 + 0.002 + 0.003) / 3, 6)
+
+
+def test_latency_and_cost_metrics_gate_on_a_ceiling() -> None:
+    def trace(latency: float, cost: float) -> Trace:
+        t = Trace(turn_id="t", session_id="s")
+        t.total_latency_ms, t.cost_usd = latency, cost
+        return t
+
+    records = [_rec("a", _result(), [trace(10, 0.001)]), _rec("b", _result(), [trace(100, 0.003)])]
+
+    # These are "lower is better" ceilings.
+    ok = EvalThresholds(latency_p95_max_ms=1000, cost_per_convo_max=1.0)
+    assert latency_metric(records, ok).passed is True
+    assert latency_metric(records, ok).higher_is_better is False
+    assert cost_metric(records, ok).passed is True
+
+    # A tight ceiling fails.
+    assert latency_metric(records, EvalThresholds(latency_p95_max_ms=50)).passed is False
+    assert cost_metric(records, EvalThresholds(cost_per_convo_max=0.0001)).passed is False

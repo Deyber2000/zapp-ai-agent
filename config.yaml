@@ -35,6 +35,10 @@ thresholds:
   language_switch_min_confidence: 0.75
   # Consecutive confident turns in a different supported language required to switch active_lang.
   language_switch_turns: 2
+  # A detection is "confident" (to lock or switch) when its absolute confidence clears the floor OR
+  # its margin over the runner-up clears this. lingua normalises mass across candidates, so es/pt
+  # split it and rarely reach an absolute 0.75 even when unambiguous — the margin rescues those.
+  language_confident_min_margin: 0.15
   # A switch needs >= this many words. Single-word borrowed tokens (ok, thanks, obrigado) read as
   # confident in another language but are socially borrowed — the confidence floor can't catch them;
   # a genuine short switch ("i need help", "in english") is always >= 2 words. (sí/no are

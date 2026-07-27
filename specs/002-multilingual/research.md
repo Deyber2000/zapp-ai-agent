@@ -67,6 +67,18 @@ borrowed token is one word; every genuine short switch (`in english` @0.95 / 10c
 the char floor's stated rationale never applied). Word count separates the two classes cleanly (13/13
 on the cases the confidence floor does not resolve); character count does not (7/13).
 
+**Amendment — confidence gate is margin OR absolute, not absolute alone**: a detection counts as
+confident (to lock, and to accumulate a switch) when `confidence >= threshold` OR
+`margin >= language_confident_min_margin` (default 0.15), where `margin` is the top language's
+confidence minus the runner-up's. `lingua` normalises confidence across the requested candidates, so
+the two Romance languages split mass with each other while English has no close neighbour in the
+supported set — the absolute `language_lock: 0.75` floor therefore under-locks es/pt structurally
+(measured ~35% of es first-turns and 25% of pt failed to lock, vs 5% en; the top detection was
+correct in 12 of 13 failures). The margin recovers the discarded right answer (`es@0.672` with
+`pt@0.21` behind is unambiguous) without locking on genuinely split input (low absolute *and* small
+margin). Applied to the first lock and the switch-confidence gate alike, so es↔pt switches no longer
+take ~2× longer than any switch involving English.
+
 ## R4 — Short-reply handling in verification (avoid false mismatches)
 
 **Decision**: Skip reply verification when the draft reply is shorter than `reply_verify_min_chars`
@@ -118,6 +130,7 @@ inconsistency.
 |---|---|---|
 | `language_switch_min_confidence` | 0.75 | deterministic confidence floor for a turn to count toward a switch |
 | `language_switch_turns` | 2 | consecutive confident turns in a new supported language required to switch |
+| `language_confident_min_margin` | 0.15 | a detection is confident if abs confidence OR its margin over the runner-up clears its floor |
 | `language_switch_min_words` | 2 | a switch requires ≥ this many words (single-word borrowed tokens can't switch) |
 | `reply_verify_min_chars` | 15 | replies shorter than this skip verification (treated as in-language) |
 

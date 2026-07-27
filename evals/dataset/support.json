@@ -31,5 +31,70 @@
       "citations": ["delivery_reschedule_es"]
     },
     "expected": {"needs_review": false, "lang": "es", "reply_contains": "reprogramar"}
+  },
+  {
+    "id": "support-en-payments-refund",
+    "capability": "support",
+    "turns": ["When will I get my refund for a cancelled order?"],
+    "script": {
+      "lang": "en",
+      "intent": "support",
+      "reply": "Refunds for cancelled orders go back to your original payment method within 5 to 10 business days.",
+      "grounded": true,
+      "citations": ["payments_refunds_en"]
+    },
+    "expected": {"needs_review": false, "lang": "en", "reply_contains": "refund"}
+  },
+  {
+    "id": "support-es-payments-methods",
+    "capability": "support",
+    "turns": ["¿qué métodos de pago puedo usar?"],
+    "script": {
+      "lang": "es",
+      "intent": "support",
+      "reply": "Aceptamos tarjetas de crédito y débito, tu monedero Zapp y una cuenta bancaria vinculada.",
+      "grounded": true,
+      "citations": ["payments_methods_es"]
+    },
+    "expected": {"needs_review": false, "lang": "es", "reply_contains": "tarjetas"}
+  },
+  {
+    "id": "support-en-orders-cancel",
+    "capability": "support",
+    "turns": ["How do I cancel an order?"],
+    "script": {
+      "lang": "en",
+      "intent": "support",
+      "reply": "You can cancel an order for free while it is still being prepared, from the Orders screen.",
+      "grounded": true,
+      "citations": ["orders_cancel_en"]
+    },
+    "expected": {"needs_review": false, "lang": "en", "reply_contains": "cancel"}
+  },
+  {
+    "id": "support-pt-returns-policy",
+    "capability": "support",
+    "turns": ["Quantos dias eu tenho para devolver um produto depois da entrega?"],
+    "script": {
+      "lang": "pt",
+      "intent": "support",
+      "reply": "Você pode devolver a maioria dos itens em até 14 dias após a entrega, se não usados.",
+      "grounded": true,
+      "citations": ["returns_policy_pt"]
+    },
+    "expected": {"needs_review": false, "lang": "pt", "reply_contains": "14 dias"}
+  },
+  {
+    "id": "support-en-membership-benefits",
+    "capability": "support",
+    "turns": ["What are the benefits of a Zapp+ membership?"],
+    "script": {
+      "lang": "en",
+      "intent": "support",
+      "reply": "Zapp+ gives you free delivery over the minimum, priority delivery slots, and member-only discounts.",
+      "grounded": true,
+      "citations": ["membership_benefits_en"]
+    },
+    "expected": {"needs_review": false, "lang": "en", "reply_contains": "free delivery"}
   }
 ]

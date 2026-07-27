@@ -1,5 +1,5 @@
 {
-  "total_cases": 13,
+  "total_cases": 18,
   "metrics": [
     {
       "name": "task_success",
@@ -7,7 +7,7 @@
       "threshold": 0.9,
       "passed": true,
       "higher_is_better": true,
-      "detail": "13/13 cases",
+      "detail": "18/18 cases",
       "applicable": true
     },
     {
@@ -16,7 +16,7 @@
       "threshold": 0.95,
       "passed": true,
       "higher_is_better": true,
-      "detail": "13/13 in expected language",
+      "detail": "18/18 in expected language",
       "applicable": true
     },
     {
@@ -39,16 +39,16 @@
     },
     {
       "name": "judge_quality",
-      "score": 4.827,
+      "score": 4.875,
       "threshold": 3.5,
       "passed": true,
       "higher_is_better": true,
-      "detail": "avg of 13 (out of 5)",
+      "detail": "avg of 18 (out of 5)",
       "applicable": true
     },
     {
       "name": "latency_p95_ms",
-      "score": 24.096,
+      "score": 25.498,
       "threshold": 5000.0,
       "passed": true,
       "higher_is_better": false,
@@ -57,7 +57,7 @@
     },
     {
       "name": "cost_per_convo",
-      "score": 0.002215,
+      "score": 0.00235,
       "threshold": 0.05,
       "passed": true,
       "higher_is_better": false,
@@ -177,11 +177,51 @@
       "safety": 5,
       "language": 5,
       "notes": null
+    },
+    {
+      "case_id": "support-en-payments-refund",
+      "helpfulness": 5,
+      "groundedness": 5,
+      "safety": 5,
+      "language": 5,
+      "notes": null
+    },
+    {
+      "case_id": "support-es-payments-methods",
+      "helpfulness": 5,
+      "groundedness": 5,
+      "safety": 5,
+      "language": 5,
+      "notes": null
+    },
+    {
+      "case_id": "support-en-orders-cancel",
+      "helpfulness": 5,
+      "groundedness": 5,
+      "safety": 5,
+      "language": 5,
+      "notes": null
+    },
+    {
+      "case_id": "support-pt-returns-policy",
+      "helpfulness": 5,
+      "groundedness": 5,
+      "safety": 5,
+      "language": 5,
+      "notes": null
+    },
+    {
+      "case_id": "support-en-membership-benefits",
+      "helpfulness": 5,
+      "groundedness": 5,
+      "safety": 5,
+      "language": 5,
+      "notes": null
     }
   ],
-  "latency_p50_ms": 9.105,
-  "latency_p95_ms": 24.096,
-  "cost_per_convo": 0.002215,
+  "latency_p50_ms": 6.054,
+  "latency_p95_ms": 25.498,
+  "cost_per_convo": 0.00235,
   "overall_passed": true,
   "generated_note": "deterministic (scripted model + rule-based judge)"
 }

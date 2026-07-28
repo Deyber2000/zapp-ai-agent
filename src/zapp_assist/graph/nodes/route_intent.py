@@ -6,12 +6,13 @@ signal marks the turn degraded so it fails safely downstream rather than guessin
 
 from __future__ import annotations
 
-from typing import get_args
+from typing import cast, get_args
 
 from pydantic import BaseModel
 
 from ..deps import Deps
 from ..state import Intent, TurnState
+from ._routing import guard_intent
 from ._util import CLARIFY_TEMPLATES, add_span, now, recent_history, tmpl
 
 _ALLOWED_INTENTS = set(get_args(Intent))
@@ -62,17 +63,21 @@ def route_intent(state: TurnState, deps: Deps) -> TurnState:
         add_span(state.trace, "route_intent", start, attrs={"degraded": True})
         return state
 
-    intent = res.parsed.intent if res.parsed.intent in _ALLOWED_INTENTS else "clarify"
-    state.intent = intent  # type: ignore[assignment]
+    raw = res.parsed.intent
+    llm_intent: Intent = cast(Intent, raw) if raw in _ALLOWED_INTENTS else "clarify"
+    # Deterministic cross-check (Constitution X): only ever pulls `action` back to a safe intent —
+    # a bare "yes" with nothing pending, or an interrogative with no order id, must not arm a state
+    # change from history. History disambiguates content; it never supplies the action.
+    intent, guard_reason = guard_intent(llm_intent, state.user_text, state.session)
+    state.intent = intent
     state.intent_confidence = res.parsed.confidence
 
     if intent == "clarify":
         state.draft_reply = tmpl(CLARIFY_TEMPLATES, active)
 
-    add_span(
-        state.trace,
-        "route_intent",
-        start,
-        attrs={"intent": intent, "confidence": res.parsed.confidence},
-    )
+    attrs: dict[str, object] = {"intent": intent, "confidence": res.parsed.confidence}
+    if guard_reason:
+        attrs["guard"] = guard_reason
+        attrs["llm_intent"] = llm_intent
+    add_span(state.trace, "route_intent", start, attrs=attrs)
     return state

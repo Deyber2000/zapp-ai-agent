@@ -35,6 +35,7 @@ from ._action import (
     ACTION_UNSUPPORTED,
     summarize_action,
 )
+from ._routing import order_ids_in
 from ._util import add_span, now, recent_history, tmpl
 
 _SUPPORTED = READ_ONLY | ORDER_ACTIONS | ACCOUNT_ACTIONS
@@ -107,6 +108,12 @@ def action_plan(state: TurnState, deps: Deps) -> TurnState:
     if action not in _SUPPORTED:
         state.needs_review_override = True
         return _finish(state, start, tmpl(ACTION_UNSUPPORTED, active), action=action)
+
+    # Constitution X: the order a state change targets must be named in THIS message. History may
+    # disambiguate a follow-up, never SUPPLY the id — else a contentless "yes" could re-arm a cancel
+    # with an order recovered from prior turns. An id not stated here is dropped, not acted on.
+    if plan.order_id and plan.order_id.upper() not in order_ids_in(state.user_text):
+        plan.order_id = None
 
     if action in ACCOUNT_ACTIONS:
         return _plan_account(state, start, plan, active)

@@ -225,43 +225,38 @@ Ordered by what would matter most in production, not by effort.
    untenable for a service. The cache pattern to fix it already exists one layer up. → [Layer 2](layer-2-retrieval.md#storage)
 2. **The full `Trace` has no export path.** A structured summary line is now emitted per turn, but
    the complete span tree is not returned or exported (OTel/Langfuse). → [Layer 5](layer-5-observability.md#gap-the-trace-summary-is-emitted-a-full-trace-export-path-is-not)
-3. **Sessions are not shared across replicas.** A file-backed store ships and is used by the CLI, but
-   a shared multi-replica backend (Redis) is not yet built. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
-
-*Recently closed (see git history):* input-side PII `redact` is now applied (Layer 4), one structured
-log line per turn is emitted (Layer 5), and a keyless CI workflow is committed (Layer 6). Those three
-layers' detailed gap sections predate the fixes and are pending a refresh.
-5. **Guardrail precision/recall rests on 4 unsafe cases.** The machinery is right, the sample is a
+3. **Sessions are not shared across replicas.** A file-backed store ships and is used by the CLI (so
+   `turn` persists across processes) and the `SessionStore` swap point is *exercised* — but a shared
+   multi-replica backend (Redis) is the remaining unproven step. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
+4. **Guardrail precision/recall rests on 4 unsafe cases.** The machinery is right, the sample is a
    seed. → [Layer 6](layer-6-evaluation.md#what-the-numbers-do-and-do-not-mean)
-6. **Retrieval is language-blind** across a parallel trilingual KB; language correctness is recovered
+5. **Retrieval is language-blind** across a parallel trilingual KB; language correctness is recovered
    at generation and verification rather than at retrieval. → [Layer 2](layer-2-retrieval.md#gap-retrieval-is-language-blind)
-7. **The chunker is not wired into the index** — a reported statistic only. No effect today (longest
+6. **The chunker is not wired into the index** — a reported statistic only. No effect today (longest
    doc: 339 chars); the 900/1200-char thresholds also disagree. → [Layer 1](layer-1-ingestion.md#gap-the-chunker-is-plumbed-but-not-indexed)
-8. **`retrieval.top_k` is honored on one of three retriever paths.** No behavioral difference today
+7. **`retrieval.top_k` is honored on one of three retriever paths.** No behavioral difference today
    because the value happens to match the hardcoded default. → [Layer 2](layer-2-retrieval.md#gap-retrievaltop_k-is-honored-on-one-path-of-three)
-9. **Two wasted LLM calls per turn on specific paths** — blocked turns and confirmation turns.
+8. **Two wasted LLM calls per turn on specific paths** — blocked turns and confirmation turns.
    → [Layer 3](layer-3-orchestration.md#micro-inefficiencies-worth-naming)
-10. **Session storage has two backends** (in-memory + a file-backed store the CLI uses, so `turn`
-    persists across processes); the `SessionStore` swap point is *exercised* — a shared multi-replica
-    store (e.g. Redis) is the remaining unproven step. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
-11. **The live Anthropic path is structurally exercised but not tested end-to-end** (no key in CI).
-    The OpenAI adapter is currently the live path.
+9. **The live Anthropic path is structurally exercised but not tested end-to-end** (no key in CI).
+   The OpenAI adapter is currently the live path.
 
-Items 1, 2, 4, and 9 are each under an hour. Item 3 is the only one that is genuinely architectural,
-and it has a template to copy.
+Most of these are an hour or less. The genuinely architectural ones — persisting the embeddings
+cache (#1) and a shared multi-replica session store (#3) — are larger, though even #1 has a template
+to copy one layer up.
 
 ---
 
 ## If this went to production
 
-**First week — close the stated-vs-built gaps.** Apply input-side redaction (#1). Emit one structured
-log line per turn and give `run_turn` a trace sink (#2). Commit the CI workflow (#4). Guard the two
-wasted LLM calls (#9). None of these change the architecture; they make the code match what the
-documentation already claims.
+**First week — close the stated-vs-built gaps.** Input-side redaction, one structured log line per
+turn, and a keyless CI workflow have shipped. What remains at this tier: give `run_turn` a trace sink
+(#2) and guard the two wasted LLM calls (#8). None of these change the architecture; they make the
+code match what the documentation claims.
 
 **First month — make the scaling seams real.** Persist embeddings behind a content-addressed cache,
-reusing the ingestion pattern (#3). Implement `RedisSessionStore` against the existing protocol and
-run two replicas to prove the seam (#10). Add a Langfuse exporter behind the trace sink — the
+reusing the ingestion pattern (#1). Implement `RedisSessionStore` against the existing protocol and
+run two replicas to prove the seam (#3). Add a Langfuse exporter behind the trace sink — the
 deterministic gate stays as-is; the platform becomes the trends and drill-down layer, which is what
 it is actually good at.
 

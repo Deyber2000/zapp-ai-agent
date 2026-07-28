@@ -113,7 +113,12 @@ def render_markdown(report: EvalReport) -> str:
 # silently drop them from the committed report — a reviewer running `zapp-eval` per the README would
 # otherwise wipe the very numbers the brief asks for, and the drift guard can't catch it (it
 # excludes them as non-reproducible). Carry a prior keyed run's rows forward, labelled.
-_LIVE_TIER_METRICS = ("llm_judge_quality", "rag_faithfulness", "rag_contextual_relevancy")
+_LIVE_TIER_METRICS = (
+    "live_task_success",
+    "llm_judge_quality",
+    "rag_faithfulness",
+    "rag_contextual_relevancy",
+)
 _CARRIED_LABEL = "carried from a prior keyed run"
 
 

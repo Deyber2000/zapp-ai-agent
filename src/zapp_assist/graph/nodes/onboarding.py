@@ -90,6 +90,7 @@ def onboarding(state: TurnState, deps: Deps) -> TurnState:
     start = now()
     cfg = deps.config
     active = state.language.active_lang if state.language else cfg.languages.fallback
+    state.intent = "onboarding"  # set regardless of how we arrived (agent handoff or the slot gate)
 
     res = deps.llm.complete(
         model=cfg.models.primary,

@@ -34,19 +34,24 @@ def _deps() -> Deps:
     )
 
 
-def _state(draft: str, history: list[TurnRef], *, pending: bool = False) -> TurnState:
+def _state(
+    draft: str, history: list[TurnRef], *, pending: bool = False, intent: str = "onboarding"
+) -> TurnState:
     session = Session(session_id="s", history=list(history))
     if pending:
         session.pending_action = PendingAction(name="cancel_order", params={"order_id": "A1001"})
     state = TurnState(turn_id="t", session=session, user_text="x", trace=Trace(turn_id="t",
                                                                                session_id="s"))
     state.language = LanguageResult(detected_lang="en", active_lang="en", lang_confidence=0.9)
+    state.intent = intent  # type: ignore[assignment]  # the guard is scoped to onboarding replies
     state.draft_reply = draft
     return state
 
 
-def _reply(draft: str, history: list[TurnRef], *, pending: bool = False) -> str:
-    out = assemble(_state(draft, history, pending=pending), _deps())
+def _reply(
+    draft: str, history: list[TurnRef], *, pending: bool = False, intent: str = "onboarding"
+) -> str:
+    out = assemble(_state(draft, history, pending=pending, intent=intent), _deps())
     assert out.result is not None
     return out.result.reply
 

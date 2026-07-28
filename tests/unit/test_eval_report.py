@@ -18,7 +18,13 @@ from evals.runner import run_dataset
 # Metrics excluded from the byte-stable comparison: wall-clock latency, and the key-adaptive quality
 # tier (LLM-judged over live outputs — present only in a keyed committed run, not a keyless CI run).
 _UNSTABLE = frozenset(
-    {"latency_p95_ms", "llm_judge_quality", "rag_faithfulness", "rag_contextual_relevancy"}
+    {
+        "latency_p95_ms",
+        "live_task_success",
+        "llm_judge_quality",
+        "rag_faithfulness",
+        "rag_contextual_relevancy",
+    }
 )
 
 _STABLE = lambda metrics: {  # noqa: E731 — compact local helper

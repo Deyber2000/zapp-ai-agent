@@ -53,14 +53,15 @@ def test_in_domain_question_is_grounded_and_same_language(lang: str) -> None:
 
 
 def test_no_grounding_declines_and_flags_review() -> None:
-    # Absent from the KB (no payments/crypto docs) → BM25 returns nothing → decline, don't invent.
-    llm = scripted_llm(lang="en", intent="support")
-    result = _agent(llm).run_turn("us1-nogrounding", "Can I pay with cryptocurrency?")
+    # Genuinely absent from the KB (no loyalty/rewards doc) → retrieval returns nothing → the model
+    # declines rather than inventing. (Payments IS covered now, so crypto would be answered.)
+    llm = scripted_llm(lang="en", intent="support", grounded=False)
+    result = _agent(llm).run_turn("us1-nogrounding", "Do you offer a loyalty rewards program?")
 
     assert result.active_lang == "en"
     assert result.needs_review is True
     # The reply must be a decline, not an invented policy answer.
-    assert "cryptocurrency" not in result.reply.lower()
+    assert "loyalty" not in result.reply.lower()
     assert "can't confirm" in result.reply.lower()
 
 

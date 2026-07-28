@@ -31,6 +31,7 @@ from .nodes import (
     verify_confidence,
     verify_reply_language,
 )
+from .nodes.onboarding import REQUIRED_SLOTS
 from .state import TurnState
 
 NodeFn = Callable[[TurnState, Deps], TurnState]
@@ -73,6 +74,12 @@ def _route_after_language(state: GraphState) -> str:
     pending = ts.session.pending_action
     if pending is not None and pending.status == "awaiting_confirmation":
         return "action_execute"
+    # An onboarding slot-fill already in progress (some required slots filled, not all) continues
+    # deterministically — the agent must not re-decide a mid-fill contact detail into a
+    # state-changing `update_contact` tool (that dropped the fused E.164 + country). FR-009/010.
+    filled = sum(1 for slot in REQUIRED_SLOTS if slot in ts.session.slots)
+    if 0 < filled < len(REQUIRED_SLOTS):
+        return "onboarding"
     return "agent"
 
 
@@ -119,7 +126,12 @@ def build_graph(deps: Deps) -> Any:
     graph.add_conditional_edges(
         "detect_language",
         _route_after_language,
-        {"assemble": "assemble", "action_execute": "action_execute", "agent": "agent"},
+        {
+            "assemble": "assemble",
+            "action_execute": "action_execute",
+            "onboarding": "onboarding",
+            "agent": "agent",
+        },
     )
     graph.add_conditional_edges(
         "agent",

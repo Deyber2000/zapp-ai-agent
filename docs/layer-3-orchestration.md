@@ -4,7 +4,7 @@
 
 ---
 
-> A typed LangGraph over 12 pure nodes, with the framework confined to one file.
+> A typed LangGraph over 11 pure nodes, with the framework confined to one file.
 > [src/zapp_assist/graph/](../src/zapp_assist/graph/)
 
 The turn graph itself is drawn in [The turn graph](architecture.md#the-turn-graph) above. The three diagrams here
@@ -59,25 +59,25 @@ sequenceDiagram
     autonumber
     actor U as User
     participant G as Graph
-    participant AP as action_plan
+    participant AG as agent
     participant T as Tool registry
     participant S as Session
     participant AE as action_execute
     participant B as Mock backend
 
     U->>G: turn 1 — cancel order A1001
-    G->>AP: routed as action
-    AP->>AP: LLM extracts action and order_id, never invents an id
-    AP->>T: lookup_order A1001 — read-only
+    G->>AG: routed to the agent (nothing pending)
+    AG->>AG: reason over the message → choose the cancel_order tool, never invent an id
+    AG->>T: lookup_order A1001 — read-only existence check
     T->>B: exists?
     B-->>T: scheduled, Sat 14-16
-    AP->>S: PendingAction status awaiting_confirmation
-    Note over AP,S: no state change has happened
-    AP-->>U: I am about to cancel order A1001. Do you confirm?
+    AG->>S: PendingAction status awaiting_confirmation
+    Note over AG,S: proposed, not executed — no state change has happened
+    AG-->>U: I am about to cancel order A1001. Do you confirm?
 
     U->>G: turn 2 — si
-    G->>G: pending action exists, so route_intent is overridden
-    G->>AE: forced to action_execute
+    G->>G: pending action exists → deterministic HITL gate, the agent is bypassed
+    G->>AE: routed straight to action_execute
     AE->>AE: classify_confirmation by regex — hedges checked first
     alt confirm
         AE->>B: cancel A1001
@@ -93,9 +93,10 @@ sequenceDiagram
     end
 ```
 
-The two properties worth naming: the router's opinion **cannot** hijack a pending confirmation
-(step 8), and the pending action is cleared **before** the reply is built, so a duplicate execution
-has no state to act on. The backend is idempotent as well, but that is defence in depth, not the
+The two properties worth naming: a pending confirmation **cannot** be hijacked by the agent's
+understanding — the deterministic gate routes it straight to `action_execute` before the agent ever
+runs — and the pending action is cleared **before** the reply is built, so a duplicate execution has
+no state to act on. The backend is idempotent as well, but that is defence in depth, not the
 mechanism.
 
 ## Session language — lock, persist, switch
@@ -135,7 +136,7 @@ it would have leaked the engine's merge semantics into every node signature. Put
 `TurnState` in one channel keeps nodes as plain functions — testable by calling them, with no graph
 at all — at the cost of losing LangGraph's automatic parallel-branch merging. Given that this turn
 pipeline is inherently sequential, that cost is zero and the isolation benefit is total: swapping the
-orchestrator means rewriting [graph/build.py](../src/zapp_assist/graph/build.py), one 145-line file.
+orchestrator means rewriting [graph/build.py](../src/zapp_assist/graph/build.py), one 157-line file.
 
 ## The node runner: skip-on-degraded, error-to-degraded, always-assemble
 
@@ -154,25 +155,27 @@ except Exception as exc:            # never crash — degrade and record
 Three properties fall out of nine lines: a failure cannot cascade into nodes that would misinterpret
 partial state; every skip and every error is *visible in the trace* rather than inferred from
 silence; and `assemble` is registered with `always=True`
-([build.py:115](../src/zapp_assist/graph/build.py#L115)) so the contract is produced no matter how badly
+([build.py:122](../src/zapp_assist/graph/build.py#L122)) so the contract is produced no matter how badly
 the middle of the graph went. The failure mode of this design is the opposite of the usual one — it
 is biased toward *too many* `needs_review=true` turns, which is the correct direction for a support
 agent that hands off to humans.
 
 ## Decision: human-in-the-loop is deterministic, and routing cannot override it
 
-State-changing actions never execute in the turn that requests them. `action_plan` verifies the order
-exists, records a `PendingAction(status="awaiting_confirmation")`, restates the operation in the
-user's language, and asks
-([nodes/action_plan.py:70-78](../src/zapp_assist/graph/nodes/action_plan.py#L70-L78)). The next turn is
-then treated as a confirmation **regardless of how the router classified it**:
+State-changing actions never execute in the turn that requests them. The `agent` **proposes** one: it
+verifies the order exists (a read-only `lookup_order`), records a
+`PendingAction(status="awaiting_confirmation")`, restates the operation in the user's language, and
+asks — but never executes it
+([nodes/agent.py:146-174](../src/zapp_assist/graph/nodes/agent.py#L146-L174), the `_propose` helper).
+The next turn is then treated as a confirmation by a deterministic gate, **before the agent ever
+runs**:
 
 ```python
 pending = ts.session.pending_action
 if pending is not None and pending.status == "awaiting_confirmation":
     return "action_execute"
 ```
-— [graph/build.py:76-79](../src/zapp_assist/graph/build.py#L76-L79)
+— [graph/build.py:74-76](../src/zapp_assist/graph/build.py#L74-L76)
 
 Confirmation is read by regex, not by the model
 ([nodes/_action.py:36-48](../src/zapp_assist/graph/nodes/_action.py#L36-L48)) — and hedges are checked
@@ -230,35 +233,43 @@ Per-turn LLM call counts, which is what actually determines latency and unit eco
 | Path | Calls | Breakdown |
 |---|---|---|
 | Blocked by input guardrail | **1** | `detect_language` |
-| Confirmation turn (`"sí"`) | **2** | `detect_language`, `route_intent` *(discarded)* |
-| Out-of-scope | 2–3 | + reply-language check on mismatch |
-| Support / onboarding / action-plan | **3** | detect, route, answer |
-| Support, all retrieval enhancements on | 7 | + HyDE, RAG-Fusion, Self-Query, rerank |
+| Confirmation turn (`"sí"`) | **1** | `detect_language` — the HITL gate routes straight to `action_execute`, no agent call |
+| Read-only lookup / track, or an action **proposal** | **2** | `detect_language`, one `agent` step |
+| Smalltalk / out_of_scope | **2** | `detect_language`, an `agent` handoff (the specialist reply is canned) |
+| Grounded support answer | **3** | `detect_language`, `agent` `search_kb`, `agent` `answer` |
+| Onboarding (fresh turn) | **3** | `detect_language`, `agent` handoff, `onboarding` extract |
+| Support, all retrieval enhancements on | 7 | + HyDE, RAG-Fusion, Self-Query, rerank (inside `search_kb`) |
 | …plus the semantic guardrail layer | 9 | + input and output classification |
 | …plus a language correction | 10 | + one rewrite |
 
-The default configuration is the 3-call row. Everything above it is a deliberate, per-deployment
-opt-in — which is the point of putting all five retrieval toggles and the semantic switch in config
-rather than in code.
+The default configuration tops out at the 3-call support/onboarding row; a proposal, a read-only
+lookup, or a handoff is cheaper at two. Folding the old router + planner into one `agent` node paid
+off here: an action *proposal* now costs a single understanding call instead of two, and a
+confirmation turn — routed by the deterministic gate before the agent — costs just the language
+detection. Everything above the support row is a deliberate, per-deployment opt-in — which is the
+point of putting all five retrieval toggles and the semantic switch in config rather than in code.
 
 ## Micro-inefficiencies worth naming
 
-Reading that table surfaces two wasted calls, both cheap to reclaim:
+Reading that table surfaces one wasted call that remains — and one the graph refactor has already
+reclaimed:
 
 - **A blocked turn still pays for `detect_language`.** The graph blocks at `guardrail_in` but only
   branches to `assemble` *after* language detection
-  ([build.py:118-121](../src/zapp_assist/graph/build.py#L118-L121)), because the refusal must be
-  localized. Correct, but the deterministic detector alone is sufficient for choosing a canned
-  template — the LLM second opinion buys nothing on input that is being refused. Guarding that call
-  with `if not state.blocked` removes an LLM call from the hostile-input path, which is exactly the
-  path an attacker can drive at volume.
-- **A confirmation turn pays for a routing call whose answer is discarded.** `route_intent` runs,
-  then `_after_intent` overrides it because a `pending_action` exists. Checking `pending_action`
-  before the routing node — a conditional edge out of `detect_language` — makes yes/no turns cost one
-  call instead of two.
+  ([build.py:67-70](../src/zapp_assist/graph/build.py#L67-L70), the `_route_after_language`
+  conditional), because the refusal must be localized. Correct, but the deterministic detector alone
+  is sufficient for choosing a canned template — the LLM second opinion buys nothing on input that is
+  being refused. Guarding that call with `if not state.blocked` removes an LLM call from the
+  hostile-input path, which is exactly the path an attacker can drive at volume.
+- **A confirmation turn no longer pays for a discarded routing call — *fixed*.** The old graph ran a
+  separate intent router and then threw the result away when a `pending_action` existed. That exact
+  optimization is now in place: the pending-action check is a conditional edge out of
+  `detect_language` ([build.py:74-76](../src/zapp_assist/graph/build.py#L74-L76)), so a yes/no turn is
+  routed straight to `action_execute` and never spends an understanding call. What this section used
+  to propose, the single-`agent` refactor shipped.
 
-Neither is a correctness issue. Both are the kind of thing that shows up as a 30% cost line item at
-scale, and both are visible precisely *because* the trace counts calls per node.
+The remaining item is not a correctness issue. It is the kind of thing that shows up as a cost line
+item at scale, and it is visible precisely *because* the trace counts calls per node.
 
 ## Storage and scaling posture
 

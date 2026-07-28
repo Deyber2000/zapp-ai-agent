@@ -44,7 +44,7 @@ flowchart TB
     DEG --> TRIM
 
     TRIM --> HITS{"any hits?"}
-    HITS -->|no| DECL["<b>decline + needs_review</b><br/>no model call at all"]
+    HITS -->|no| DECL["<b>decline + needs_review</b><br/>agent sets grounded = false"]
     HITS -->|yes| ANS["answer strictly from snippets<br/>model may set grounded = false"]
     ANS --> G2{"grounded?"}
     G2 -->|no| DECL
@@ -64,7 +64,7 @@ BM25 into RRF into trim into the grounding gate. That is the no-key path, and it
 ## The shape
 
 ```
-support_rag ─→ Retriever (Protocol)
+agent · search_kb ─→ Retriever (Protocol)
                  └─ AdvancedRetriever      (optional wrapper: RAG-Fusion, HyDE, Self-Query, rerank)
                       └─ HybridRetriever   (RRF over the two below)
                            ├─ BM25Store    ← always available, offline, deterministic
@@ -90,7 +90,7 @@ rank by RRF but report the document's original score — its BM25 score if lexic
 cosine scaled by 10× onto a BM25-ish range
 ([hybrid.py:63-67](../src/zapp_assist/rag/hybrid.py#L63-L67)). That constant is a calibration hack and
 is labelled as one in the source. It works because `grounding_confidence` is itself a coarse map
-(`min(1, 0.6 + 0.05·score)`, [support_rag.py:42-44](../src/zapp_assist/graph/nodes/support_rag.py#L42-L44))
+(`min(1, 0.6 + 0.05·score)`, [agent.py:103-104](../src/zapp_assist/graph/nodes/agent.py#L103-L104))
 feeding a single threshold decision. If confidence ever drove finer-grained behavior, this would
 need real calibration against labelled relevance.
 
@@ -136,18 +136,24 @@ filtering** — a re-rank error costs position, a filter error costs the answer.
 
 1. **Retrieval threshold (deterministic).** BM25 tokenization folds diacritics and strips a
    trilingual stopword list ([store.py:26-37](../src/zapp_assist/rag/store.py#L26-L37)) so that common
-   words cannot manufacture a match; anything below `grounding_min_score = 1.0` is discarded. No
-   hits → `support_rag` declines and sets `needs_review` **without calling the model at all**
-   ([support_rag.py:64-66](../src/zapp_assist/graph/nodes/support_rag.py#L64-L66)).
-2. **Generation escape hatch.** The response schema carries `grounded: bool`; the system prompt
-   instructs the model to set it false rather than answer
-   ([support_rag.py:27-34](../src/zapp_assist/graph/nodes/support_rag.py#L27-L34)). A false value
-   routes to the same decline.
+   words cannot manufacture a match; anything below `grounding_min_score = 1.0` is discarded. When
+   nothing clears it, the agent's `search_kb` step feeds back no snippets and `grounding_confidence`
+   drops to `0.2` ([agent.py:222-226](../src/zapp_assist/graph/nodes/agent.py#L222-L226)), steering
+   the next step to decline.
+2. **Generation escape hatch.** The agent's `AgentStep` carries `grounded: bool`; the system prompt
+   instructs the model to set it false rather than answer from nothing
+   ([agent.py:83-84](../src/zapp_assist/graph/nodes/agent.py#L83-L84)). An empty or ungrounded answer
+   routes to the deterministic decline template and sets `needs_review`
+   ([agent.py:113-119](../src/zapp_assist/graph/nodes/agent.py#L113-L119), the `_decline` helper).
 3. **Output guardrail backstop.** If retrieval was attempted, returned nothing, and the reply is
    nonetheless assertive, the `ungrounded` rule escalates
    ([baseline.py:117-124](../src/zapp_assist/guardrails/baseline.py#L117-L124)).
 
-Only step 2 depends on model compliance, and it is sandwiched between two deterministic checks.
+Only step 2 depends on model compliance, and it is sandwiched between two deterministic checks — the
+threshold that decides there is nothing to ground on, and the output backstop. One shift from the old
+dedicated retrieval node: an empty result now loops back through the model to decline with
+`grounded=false` rather than declining with no model call, so the escape hatch does a little more of
+the work — still fenced by the two deterministic checks on either side.
 
 ## Storage
 
@@ -182,8 +188,8 @@ demonstrates the mechanism (metadata-driven scoring); `lang` should get the same
 
 ## Gap: `retrieval.top_k` is honored on one path of three
 
-`support_rag` calls `search()` without a `top_k`
-([support_rag.py:63](../src/zapp_assist/graph/nodes/support_rag.py#L63)). `HybridRetriever` defaults it
+The agent's `search_kb` step calls `search()` without a `top_k`
+([agent.py:223](../src/zapp_assist/graph/nodes/agent.py#L223)). `HybridRetriever` defaults it
 to `None` and therefore falls through to the configured value
 ([hybrid.py:52](../src/zapp_assist/rag/hybrid.py#L52)), but `BM25Store` and `AdvancedRetriever` both
 default the parameter to a literal `3`

@@ -13,10 +13,17 @@
     "expected": {"needs_review": false, "lang": "en", "reply_contains": "reschedule"}
   },
   {
+    "id": "support-en-payments",
+    "capability": "support",
+    "turns": ["What payment methods can I use on Zapp?"],
+    "script": {"lang": "en", "intent": "support", "reply": "You can pay with credit or debit cards, your Zapp wallet balance, or a linked bank account.", "grounded": true},
+    "expected": {"needs_review": false, "lang": "en", "reply_contains": "card"}
+  },
+  {
     "id": "support-en-decline",
     "capability": "support",
-    "turns": ["Can I pay with cryptocurrency?"],
-    "script": {"lang": "en", "intent": "support"},
+    "turns": ["Do you offer a loyalty rewards program?"],
+    "script": {"lang": "en", "intent": "support", "grounded": false},
     "expected": {"needs_review": true, "lang": "en", "reply_contains": "can't confirm"}
   },
   {

@@ -266,3 +266,16 @@ def test_unsupported_language_gets_a_fallback_and_skips_the_action_flow() -> Non
     assert result.detected_lang == "fr" and result.active_lang == "en"
     assert result.needs_review is True
     assert result.reply == UNSUPPORTED_LANG_TEMPLATES["en"]
+
+
+def test_short_greeting_locks_the_users_language_on_the_first_turn() -> None:
+    # A one-word "hola" that lingua alone rates below the lock threshold (0.45) still adopts Spanish
+    # when the LLM agrees — the reply is Spanish, not English. (Regression: greeting -> en.)
+    r = _agent(scripted_llm(lang="es", intent="smalltalk")).run_turn("greet-es", "hola")
+    assert r.detected_lang == "es" and r.active_lang == "es"
+
+
+def test_short_greeting_trusts_the_llm_when_lingua_is_uncertain() -> None:
+    # "olá" is mis-rated es by lingua on 3 chars; on a short first turn the LLM's pt breaks the tie.
+    r = _agent(scripted_llm(lang="pt", intent="smalltalk")).run_turn("greet-pt", "olá")
+    assert r.detected_lang == "pt" and r.active_lang == "pt"

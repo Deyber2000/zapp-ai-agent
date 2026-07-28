@@ -50,8 +50,8 @@ uv run zapp-ingest validate   # schema / language / duplication / coverage check
 uv run zapp-ingest build      # validate -> chunk -> enrich -> build; --refresh to enrich new docs live
 
 # Verify everything (no key needed)
-uv run pytest                 # 147 tests: unit + contract + integration (001–004)
-uv run ruff check . && uv run mypy src
+uv run pytest                 # 207 tests: unit + contract + integration (001–004)
+uv run ruff check . && uv run mypy src evals
 ```
 
 A one-shot `turn` prints the canonical JSON contract; the expected shape is in

@@ -37,10 +37,10 @@ flowchart TB
     TR["<b>Trace</b><br/>turn_id · session_id<br/>ordered spans with status ok / error / skipped<br/>TokenTotals · cost_usd · total_latency_ms"]
 
     TR --> C1["<b>consumer 1 — the eval suite</b><br/>latency percentiles, cost per conversation,<br/>language fidelity from reply_match,<br/>guardrail category and layer counts"]
-    TR -.-> C2["<b>consumer 2 — logs</b><br/>NOT IMPLEMENTED<br/>structlog is a declared dependency<br/>with zero call sites"]
+    TR --> C2["<b>consumer 2 — logs</b><br/>one structured line per turn<br/>emitted from run_turn via structlog<br/>ids · language · intent · tokens · cost · latency"]
     TR -.-> C3["<b>consumer 3 — an exporter</b><br/>NOT IMPLEMENTED<br/>OTel / Langfuse would map from here"]
 
-    RT["Agent.run_turn builds the Trace,<br/>sets total_latency_ms,<br/>then returns only TurnResult —<br/>the trace falls out of scope"]
+    RT["Agent.run_turn builds the Trace,<br/>sets total_latency_ms,<br/>emits one structured turn log,<br/>then returns TurnResult"]
     RT -.-> TR
     EV["the eval works around this by driving<br/>the compiled graph directly<br/>instead of calling run_turn"]
     EV -.-> C1
@@ -102,28 +102,25 @@ The abstraction is small enough that an exporter is a mapping function, not a mi
 
 **This is the right call *given* an export path exists. It does not, yet — see below.**
 
-## Gap: nothing is emitted, and the trace is dropped
+## Gap: the trace summary is emitted; a full-trace export path is not
 
-This is the layer's weakest point and it should be stated bluntly:
+The layer's original weakest point — *nothing was emitted* — is now closed; what remains is an
+export path:
 
-- `structlog` is a declared dependency in [pyproject.toml](../pyproject.toml) and the 001 research
-  document promises "logs via `structlog`". **There is no logging in the codebase at all** — no
-  `import logging`, no logger, no structlog call, in `src/` or `evals/`.
-- `Agent.run_turn` builds a `Trace`, threads it through the graph, sets `total_latency_ms`… and then
-  returns only the `TurnResult`, letting the trace fall out of scope
-  ([agent.py:63-80](../src/zapp_assist/agent.py#L63-L80)).
+- `structlog` is wired up: `Agent.run_turn` emits **one structured line per turn** (`turn_complete`)
+  carrying the ids, language, intent, review flag, guardrail actions, span count, tokens, cost, and
+  latency ([agent.py](../src/zapp_assist/agent.py), [obs/log.py](../src/zapp_assist/obs/log.py)). So
+  the constitution's standard — "debuggable from logs alone" — **is met for a running agent**: the
+  per-turn summary is enough to trace and cost-account a turn from logs.
+- What is *not* yet exported is the **full `Trace` object** (the ordered per-span detail). The log
+  line is a summary; the complete span tree still falls out of scope after the turn, and the eval is
+  the only consumer that reads it in full — by driving the compiled graph directly to keep the trace
+  ([evals/runner.py:43-52](../evals/runner.py#L43-L52)).
 
-So the constitution's standard — "debuggable from logs alone" — is **not met by a running agent
-today**. The instrumentation is real and complete; the *emission* is missing. The only reason the
-eval works is that it bypasses `run_turn` and drives the compiled graph itself specifically to keep
-the trace ([evals/runner.py:43-52](../evals/runner.py#L43-L52)) — a workaround the eval's design notes
-justify as "changes nothing in the agent", which is true, but it also papers over the fact that there
-was nothing to change *to*.
-
-**Fix, in order of cost:** (1) emit one structured log line per turn from `run_turn` — the model is
-already `.model_dump()`-able, so this is ~5 lines; (2) return the trace alongside the result, or
-accept an optional sink callback, so callers can route it; (3) add an OTel exporter behind the same
-sink. Step 1 alone closes the gap between the claim and the code.
+**Remaining fix, in order of cost:** (1) ~~emit one structured log line per turn~~ — **done**;
+(2) return the trace alongside the result, or accept an optional sink callback, so callers can route
+the full span tree; (3) add an OTel exporter behind the same
+sink. Step 1 has closed the gap between the claim and the code; steps 2–3 deepen it.
 
 ---
 

@@ -267,10 +267,12 @@ scale, and both are visible precisely *because* the trace counts calls per node.
 an in-flight turn cannot mutate stored state — a half-processed turn that crashes leaves the session
 exactly as it was. Nodes are stateless and side-effect-free.
 
-The honest statement is: this is *designed* for horizontal scale and not *proved* at it. The
-process-local store means two replicas do not share sessions, and the swap point — while genuinely
-clean, since no node touches the store — has never been exercised against Redis. What the design does
-guarantee is that the swap is a new class implementing two methods, not a refactor.
+The honest statement is: this is *designed* for horizontal scale and partly *proved* at it. The swap
+point is no longer just theoretical — `FileSessionStore` is a second implementation (JSON per
+session, persisted across processes) that the CLI uses for multi-turn `turn`, so the two-method seam
+has actually been swapped. What remains unproven is a *shared* store: two replicas still don't share
+sessions until a Redis-style backend is added — but, as `FileSessionStore` demonstrates, that is a
+new class implementing two methods, not a refactor.
 
 ---
 

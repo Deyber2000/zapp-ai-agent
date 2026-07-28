@@ -29,7 +29,7 @@ flowchart TB
     COL1 --> GOV1["governing action = max of<br/>allow &lt; redact &lt; escalate &lt; refuse"]
     GOV1 -->|refuse or escalate| BLK["blocked = true<br/>skip to assemble<br/>canned decline in active_lang<br/>offending content never echoed"]
     GOV1 -->|escalate| RV1["needs_review_override"]
-    GOV1 -->|redact| GAP["<b>GAP</b> — recorded but not applied<br/>no masking on the input path<br/>raw text still reaches final_normalized_text"]
+    GOV1 -->|redact| MASKIN["masks PII spans on the input path<br/>final_normalized_text retains the masked text, not the raw"]
     GOV1 -->|allow| PROC["process the turn"]
     FS1 -.->|degraded means not fully checked| RV1
 
@@ -60,15 +60,14 @@ flowchart TB
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
     classDef safe fill:#fee2e2,stroke:#dc2626,color:#450a0a;
     classDef gap fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-dasharray: 5 4;
-    class DET1,DET2,COL1,COL2,GOV1,GOV2,MASK,PASS,PROC,OOS det;
+    class DET1,DET2,COL1,COL2,GOV1,GOV2,MASK,MASKIN,PASS,PROC,OOS det;
     class CLS1,CLS2 llm;
     class BLK,SWAP,FS1,RV1 safe;
-    class GAP gap;
 ```
 
 **Two things the diagram makes obvious that prose hides.** The semantic layer's failure edge leads to
-*fewer* decisions plus a review flag — never to an unchecked pass. And the single dashed box is the
-layer's one real defect: an input `redact` is recorded and then not carried out.
+*fewer* decisions plus a review flag — never to an unchecked pass. And `redact` is symmetric: PII is
+masked on the input path (into `final_normalized_text`) as well as on the output reply.
 
 ## Structure
 
@@ -145,27 +144,27 @@ that dodges the keywords reaches the router, which classifies it `out_of_scope` 
 produce the same auditable artifact, which is what makes the eval's precision/recall metric able to
 score "was this correctly refused?" uniformly across mechanisms.
 
-## Gap: `redact` at the input stage is recorded but not applied
+## Input-side `redact` is applied (previously a gap)
 
-The `pii` input rule declares `action: redact`, but `guardrail_in` only branches on `refuse` and
-`escalate` ([guardrail_in.py:23-26](../src/zapp_assist/graph/nodes/guardrail_in.py#L23-L26)), and
-`mask_pii` is called **only** from `guardrail_out`
-([guardrail_out.py:39](../src/zapp_assist/graph/nodes/guardrail_out.py#L39)). So when a user pastes an
-email address, the decision is correctly recorded, the reply is correctly scrubbed — and the raw
-address still flows into `final_normalized_text` on the returned contract
-([assemble.py:64](../src/zapp_assist/graph/nodes/assemble.py#L64)) and into any downstream consumer.
+The `pii` input rule declares `action: redact`. `guardrail_in` now masks the PII spans when a redact
+decision fires ([guardrail_in.py](../src/zapp_assist/graph/nodes/guardrail_in.py)), and `assemble`
+uses the masked text for `final_normalized_text` on every path — main, the no-usable-reply fallback,
+and the exception fallback ([assemble.py](../src/zapp_assist/graph/nodes/assemble.py)). So when a user
+pastes an email address, the decision is recorded, the reply is scrubbed, **and** the raw address no
+longer reaches the returned contract. A deliberately normalized value (onboarding's E.164 phone) still
+wins, so onboarding is unaffected.
 
-This is the most substantive gap in the document. The output side is airtight; the input side records
-an intent it never carries out. The fix is small — mask the text used for `final_normalized_text` when
-the governing input action is `redact` — but it should be stated plainly rather than left to the
-reader to discover, because "PII is redacted" is a claim a reviewer will reasonably read as covering
-both directions.
+`redact` is now symmetric — both the input and output sides carry it out — which is what a reviewer
+reasonably reads "PII is redacted" to mean. Scope: this covers the retained/returned input; redacting
+the text *sent to the LLM* is a larger change (it would perturb detection/routing) and is
+intentionally out of scope.
 
 ## Other security posture
 
 Secrets live only in the environment via `pydantic-settings`; `.env` is git-ignored and
-`.env.example` documents the variables. Nothing logs — which, as Layer 5 notes, is its own problem,
-but does mean there is no logging path that could leak a key. Tool inputs are Pydantic-validated at
+`.env.example` documents the variables. The per-turn log (Layer 5) emits only metadata — ids,
+language, intent, token/cost/latency counts, guardrail actions — never a secret and never raw user
+text, so it is not a leak vector. Tool inputs are Pydantic-validated at
 the boundary ([tools/registry.py:28-34](../src/zapp_assist/tools/registry.py#L28-L34)). The blocked path
 never echoes the offending content: it emits a canned per-language decline
 ([assemble.py:37-38](../src/zapp_assist/graph/nodes/assemble.py#L37-L38)).

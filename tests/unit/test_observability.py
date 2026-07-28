@@ -18,8 +18,8 @@ from zapp_assist.obs.trace import Trace
 _EXPECTED_NODES = {
     "guardrail_in",
     "detect_language",
-    "route_intent",
-    "support_rag",
+    "agent",  # the tool-calling core (was route_intent + support_rag)
+    "verify_reply_language",
     "verify_confidence",
     "guardrail_out",
     "assemble",

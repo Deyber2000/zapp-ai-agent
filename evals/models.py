@@ -31,6 +31,8 @@ class MockScript(BaseModel):
     action: str | None = None
     order_id: str | None = None
     new_time: str | None = None
+    field: str | None = None
+    value: str | None = None
     safety_findings: list[str] = Field(default_factory=list)
     rewritten: str | None = None
 

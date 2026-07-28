@@ -7,7 +7,7 @@ now recorded per turn, and the router's prompt carries the prior turns.
 
 from __future__ import annotations
 
-from tests.support.mock_llm import MockCall, MockLLMClient
+from tests.support.mock_llm import MockCall, MockLLMClient, agent_step
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
 from zapp_assist.graph.nodes._util import recent_history
@@ -46,11 +46,14 @@ def test_history_is_recorded_and_fed_to_the_router() -> None:
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang="en", confidence=0.97)
-        if name == "IntentSignal":
-            router_prompts.append(_last_user(call))  # capture what the router actually saw
-            return call.schema(intent="support", confidence=0.95)
-        if name == "GroundedAnswer":
-            return call.schema(reply="You can reschedule up to 2 hours before.", grounded=True)
+        if name == "AgentStep":
+            prompt = _last_user(call)
+            if "KB snippets:" not in prompt:  # the opening step, before retrieval — the real prompt
+                router_prompts.append(prompt)
+            return agent_step(
+                call.schema, call, intent="support",
+                reply="You can reschedule up to 2 hours before.",
+            )
         return None
 
     store = InMemorySessionStore()

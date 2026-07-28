@@ -7,7 +7,7 @@ mutates state. Read-only lookups answer at once; unknown orders are refused hone
 
 from __future__ import annotations
 
-from tests.support.mock_llm import MockCall, MockLLMClient
+from tests.support.mock_llm import MockCall, MockLLMClient, agent_step
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
 from zapp_assist.graph.nodes._action import ACTION_DONE
@@ -32,11 +32,10 @@ def _action_llm(
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang=lang, confidence=0.97)
-        if name == "IntentSignal":
-            return call.schema(intent="action", confidence=0.95)
-        if name == "ActionRequest":
-            return call.schema(
-                action=action, order_id=order_id, new_time=new_time, field=field, value=value
+        if name == "AgentStep":
+            return agent_step(
+                call.schema, call, intent="action", action=action, order_id=order_id,
+                new_time=new_time, field=field, value=value,
             )
         return None
 

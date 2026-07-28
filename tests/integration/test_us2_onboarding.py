@@ -8,7 +8,7 @@
 
 from __future__ import annotations
 
-from tests.support.mock_llm import MockCall, MockLLMClient
+from tests.support.mock_llm import MockCall, MockLLMClient, agent_step
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
 
@@ -41,8 +41,8 @@ def _onboarding_llm(
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang=lang, confidence=0.97)
-        if name == "IntentSignal":
-            return call.schema(intent="onboarding", confidence=0.95)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="onboarding")
         if name == "OnboardingExtraction":
             return call.schema(
                 full_name=full_name,
@@ -136,8 +136,8 @@ def test_slots_fill_across_turns_without_re_requesting() -> None:
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang="en", confidence=0.97)
-        if name == "IntentSignal":
-            return call.schema(intent="onboarding", confidence=0.95)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="onboarding")
         if name == "OnboardingExtraction":
             if any(ch.isdigit() for ch in _last_user(call)):
                 return call.schema(

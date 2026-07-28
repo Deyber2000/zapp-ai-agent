@@ -22,11 +22,14 @@ from .guardrails.semantic import LLMSemanticClassifier
 from .lang.detector import LanguageDetector, LinguaDetector
 from .llm.client import LLMClient
 from .memory.session_store import InMemorySessionStore, SessionStore
+from .obs.log import get_logger
 from .obs.trace import Trace
 from .rag.retriever import Retriever, build_retriever
 from .tools.mock_backend import MockBackend, register_backend_tools
 from .tools.normalize import register_normalize_tools
 from .tools.registry import ToolRegistry
+
+_log = get_logger("zapp.turn")
 
 
 class Agent:
@@ -77,6 +80,28 @@ class Agent:
         )
         ts.trace.total_latency_ms = (perf_counter() - t0) * 1000
         self._store.save(ts.session)
+
+        # One structured line per turn: enough to debug and cost-account it from logs alone (XI).
+        _log.info(
+            "turn_complete",
+            turn_id=ts.trace.turn_id,
+            session_id=session_id,
+            intent=ts.intent,
+            active_lang=result.active_lang,
+            detected_lang=result.detected_lang,
+            lang_confidence=round(result.lang_confidence, 3),
+            confidence=round(result.confidence_score, 3),
+            needs_review=result.needs_review,
+            degraded=ts.degraded,
+            blocked=ts.blocked,
+            guardrails_in=[d.action for d in result.guardrails.input],
+            guardrails_out=[d.action for d in result.guardrails.output],
+            spans=len(ts.trace.spans),
+            input_tokens=ts.trace.tokens.input,
+            output_tokens=ts.trace.tokens.output,
+            cost_usd=round(ts.trace.cost_usd, 6),
+            latency_ms=round(ts.trace.total_latency_ms, 2),
+        )
         return result
 
     @property

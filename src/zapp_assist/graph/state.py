@@ -63,6 +63,9 @@ class TurnState:
     # internal control/help flags (not part of the external contract)
     blocked: bool = False
     degraded: bool = False
+    # target language when the user explicitly asks to switch ("reply in English"); set by
+    # detect_language after it flips active_lang, so smalltalk can confirm the switch.
+    lang_switch_to: str | None = None
     needs_review: bool = False
     needs_review_override: bool = False
     grounding_confidence: float | None = None

@@ -74,3 +74,26 @@ def test_first_turn_locks_on_margin_below_absolute_floor() -> None:
         "hola, necesito cancelar mi pedido por favor", None, _StubDetector("es", 0.672, margin=0.46)
     )
     assert session.active_lang == "es"
+
+
+def test_explicit_switch_request_flips_active_immediately() -> None:
+    # A locked es session, mid-switch toward pt, gets an explicit "reply in English": the active
+    # language flips to en at once (over the sustained-count accumulator, which is reset).
+    deps = Deps(
+        config=load_config(),
+        llm=MockLLMClient(),
+        detector=_StubDetector("es", 0.9),  # the request is written in Spanish
+        guardrails=None,
+        tools=None,
+    )
+    session = Session(session_id="t", active_lang="es", pending_switch_lang="pt",
+                      pending_switch_count=1)
+    state = TurnState(
+        turn_id="t-0", session=session, user_text="please reply in English from now on",
+        trace=Trace(turn_id="t-0", session_id="t"),
+    )
+    detect_language(state, deps)
+    assert session.active_lang == "en"
+    assert session.pending_switch_lang is None and session.pending_switch_count == 0
+    assert state.lang_switch_to == "en"
+    assert state.language is not None and state.language.detected_lang == "es"  # honest detection

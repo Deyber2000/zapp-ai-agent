@@ -31,7 +31,7 @@ from .nodes import (
     verify_confidence,
     verify_reply_language,
 )
-from .nodes.onboarding import REQUIRED_SLOTS
+from .nodes.onboarding import REQUIRED_SLOTS, looks_like_contact
 from .state import TurnState
 
 NodeFn = Callable[[TurnState, Deps], TurnState]
@@ -66,7 +66,9 @@ def _wrap(name: str, fn: NodeFn, deps: Deps, *, always: bool = False) -> Runner:
 
 def _route_after_language(state: GraphState) -> str:
     ts = state["ts"]
-    if ts.blocked:
+    # A blocked turn, or one in an unsupported language (fixed reply already drafted), skips to
+    # assemble — never through the agent or the action flow.
+    if ts.blocked or ts.unsupported_lang:
         return "assemble"
     # A pending action awaiting confirmation makes THIS turn a confirmation response — routed
     # deterministically straight to execution, never back through the agent. This is the single
@@ -75,10 +77,12 @@ def _route_after_language(state: GraphState) -> str:
     if pending is not None and pending.status == "awaiting_confirmation":
         return "action_execute"
     # An onboarding slot-fill already in progress (some required slots filled, not all) continues
-    # deterministically — the agent must not re-decide a mid-fill contact detail into a
-    # state-changing `update_contact` tool (that dropped the fused E.164 + country). FR-009/010.
+    # deterministically — but ONLY when the message actually carries contact data. This keeps a
+    # mid-fill phone/email in onboarding (the agent must not re-decide it into `update_contact`,
+    # which drops the fused E.164 + country) while letting a subject change (a question, a new
+    # request) fall through to the agent instead of trapping the user in slot-filling. FR-009/010.
     filled = sum(1 for slot in REQUIRED_SLOTS if slot in ts.session.slots)
-    if 0 < filled < len(REQUIRED_SLOTS):
+    if 0 < filled < len(REQUIRED_SLOTS) and looks_like_contact(ts.user_text):
         return "onboarding"
     return "agent"
 

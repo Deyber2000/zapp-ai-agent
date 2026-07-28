@@ -22,7 +22,7 @@
   {
     "id": "support-en-decline",
     "capability": "support",
-    "turns": ["Do you offer a loyalty rewards program?"],
+    "turns": ["Can I tip my delivery driver in cash at the door?"],
     "script": {"lang": "en", "intent": "support", "grounded": false},
     "expected": {"needs_review": true, "lang": "en", "reply_contains": "can't confirm"}
   },

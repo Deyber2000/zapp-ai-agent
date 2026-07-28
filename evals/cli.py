@@ -20,7 +20,7 @@ import typer
 from zapp_assist.config import get_settings, load_config
 
 from .models import MetricResult, load_dataset, load_thresholds
-from .quality_tier import quality_tier_available, run_quality_tier
+from .quality_tier import live_tier_available, run_quality_tier
 from .report import build_report, render_markdown, write_report
 from .runner import run_dataset
 
@@ -42,11 +42,11 @@ def main(
     extra: list[MetricResult] = []
     note = "deterministic (scripted model + rule-based judge)"
     settings = get_settings()
-    if quality_tier_available(settings):
-        typer.echo("Key present — running the live LLM-judged quality tier (deepeval)…")
+    if live_tier_available(settings):
+        typer.echo("Key present — running live tier: task success + LLM judge (deepeval optional).")
         extra = run_quality_tier(cases, load_config(), settings, thresholds)
         if extra:
-            note = "deterministic core + live LLM-judged quality tier (deepeval)"
+            note = "deterministic core + live tier (task success + LLM judge)"
 
     report = build_report(records, cases, thresholds, extra_metrics=extra, note=note)
     write_report(report, Path(out) if out else None)

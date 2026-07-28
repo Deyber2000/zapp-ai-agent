@@ -16,7 +16,7 @@ from ...lang.detector import (
 )
 from ..deps import Deps
 from ..state import TurnState
-from ._util import add_span, now
+from ._util import UNSUPPORTED_LANG_TEMPLATES, add_span, now, tmpl
 
 _LANG_SYSTEM = (
     "You identify the language of the user's message. Respond with the ISO 639-1 code "
@@ -42,11 +42,14 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
     if foreign is not None:
         iso, conf = foreign
         state.needs_review_override = True
+        state.unsupported_lang = True
         state.session.pending_switch_lang = None
         state.session.pending_switch_count = 0
         state.language = LanguageResult(
             detected_lang=iso, active_lang=cfg.languages.fallback, lang_confidence=round(conf, 4)
         )
+        # A fixed reply in the fallback language, so the router skips the agent (no action flow).
+        state.draft_reply = tmpl(UNSUPPORTED_LANG_TEMPLATES, cfg.languages.fallback)
         add_span(
             state.trace,
             "detect_language",
@@ -103,17 +106,45 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
         )
         return state
 
-    # Language lock/persist/switch policy (002). The deterministic detection drives the choice
-    # (Principle X); an LLM disagreement only lowers `lang_confidence` via fuse(). A locked language
-    # persists across weak/short turns and switches only on sustained, confident intent — a single
-    # foreign phrase never flips it. A switch needs >= min_words: single-word borrowed tokens
+    # Lock / persist / switch policy (002) for turns not settled by the first-turn rule below. The
+    # deterministic detector picks the language; the FUSED confidence drives the threshold. A locked
+    # language persists across weak/short turns and switches only on sustained, confident intent — a
+    # single foreign phrase never flips it. A switch needs >= min_words: single-word borrowed tokens
     # (ok/thanks/obrigado) read as confident in another language but are socially borrowed.
     thr = cfg.thresholds
     substantial = len(state.user_text.split()) >= thr.language_switch_min_words
+
+    # First turn (no lock yet): pick the user's language decisively, not defaulting to English.
+    # Lingua alone is unreliable on short greetings — it rates "hola" es@0.45 and even mis-detects
+    # "olá" as es — so:
+    #   * AGREE: when lingua and the LLM name the same supported language, adopt it (two signals →
+    #     decisive, even a one-word greeting below the lock threshold);
+    #   * WEAK+SHORT: when the message is short and lingua is below the lock threshold, trust the
+    #     LLM's supported pick to break the es/pt tie ("olá" → pt).
+    # Substantial messages keep lingua authoritative (Principle X). This sets only the INITIAL lock;
+    # the deterministic sustained-switch policy below still guards a locked language from flipping.
+    agree = llm_lang is not None and llm_lang == deterministic.detected_lang
+    weak_short = not substantial and deterministic.lang_confidence < thr.language_lock
+    if state.session.active_lang is None and llm_lang in cfg.languages.supported and (
+        agree or weak_short
+    ):
+        conf = round(fused.lang_confidence if agree else (llm_conf or 0.6), 4)
+        state.session.active_lang = llm_lang
+        state.language = LanguageResult(
+            detected_lang=llm_lang, active_lang=llm_lang, lang_confidence=conf
+        )
+        add_span(
+            state.trace,
+            "detect_language",
+            start,
+            attrs={"detected": llm_lang, "active": llm_lang, "confidence": conf, "first": True},
+        )
+        return state
+
     locked, pending_lang, pending_count, switched = apply_switch_policy(
         active_lang=state.session.active_lang,
         detected=deterministic.detected_lang,
-        confidence=deterministic.lang_confidence,
+        confidence=fused.lang_confidence,
         margin=deterministic.margin,
         substantial=substantial,
         pending_lang=state.session.pending_switch_lang,

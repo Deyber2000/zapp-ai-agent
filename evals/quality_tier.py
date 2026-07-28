@@ -24,6 +24,7 @@ from zapp_assist.memory.session_store import Session
 from zapp_assist.obs.trace import Trace
 
 from .judge import LLMJudge
+from .metrics import task_success
 from .models import EvalCase, EvalThresholds, JudgeVerdict, MetricResult, RunRecord
 
 # deepeval's RAG metrics are slow (many sub-calls each); cap them to a representative sample of
@@ -39,16 +40,26 @@ class _Live:
     context: list[str] = field(default_factory=list)  # retrieval_context (doc texts), final turn
 
 
-def quality_tier_available(settings: Settings) -> bool:
-    """True when a key is present and deepeval is importable — the tier runs, else it is skipped."""
+def live_tier_available(settings: Settings) -> bool:
+    """The live tier (live_task_success + LLM-as-judge) needs ONLY a provider key — not deepeval.
 
-    if not settings.openai_api_key:
-        return False
+    These are the metrics that catch a routing/tool regression, and neither depends on the optional
+    `deepeval` extra; gating them behind it made the regression detector unreachable on a stock
+    install (the whole tier was skipped whenever deepeval was absent).
+    """
+
+    return bool(settings.openai_api_key)
+
+
+def deepeval_available() -> bool:
+    """The deepeval RAG metrics (faithfulness, contextual relevancy) need the optional extra."""
+
     try:
         import deepeval  # noqa: F401
+
+        return True
     except Exception:
         return False
-    return True
 
 
 def _live_config(config: AppConfig) -> AppConfig:
@@ -156,7 +167,7 @@ def run_quality_tier(
 ) -> list[MetricResult]:
     """Run the live LLM-judged + deepeval tier. Returns [] if unavailable/failed (i.e. skipped)."""
 
-    if not quality_tier_available(settings):
+    if not live_tier_available(settings):
         return []
     os.environ.setdefault("DEEPEVAL_TELEMETRY_OPT_OUT", "YES")
     if settings.openai_api_key:
@@ -168,13 +179,26 @@ def run_quality_tier(
         graph = build_graph(agent.deps)
         live = [_run_live_case(case, graph, agent) for case in cases]
 
+        # Task success over the LIVE outputs — the deterministic tier pins the model's decision via
+        # MockScript, so it never exercises tool selection (the thing the agent refactor changed).
+        # This metric does: it runs the real agent and scores the observed outcome vs each label, so
+        # a routing/tool regression shows up here even though the scripted core stays green.
+        records = [lv.record for lv in live]
+        live_task = task_success(records, cases, thresholds).model_copy(
+            update={
+                "name": "live_task_success",
+                "detail": "task success over LIVE agent outputs (real tool selection)",
+            }
+        )
+
         judge = LLMJudge(agent.deps.llm, live_cfg)
         verdicts = [judge.score(lv.case, lv.record) for lv in live if lv.record.result is not None]
-        metrics: list[MetricResult] = []
+        metrics: list[MetricResult] = [live_task]
         judge_metric = _judge_metric(verdicts, thresholds)
         if judge_metric is not None:
             metrics.append(judge_metric)
-        metrics.extend(_deepeval_metrics(live, config.models.primary, thresholds))
+        if deepeval_available():  # RAG metrics only — the rest of the tier already ran
+            metrics.extend(_deepeval_metrics(live, config.models.primary, thresholds))
         return metrics
     except Exception:  # the tier is best-effort — never break the core report
         return []

@@ -7,7 +7,7 @@ detail to a completed onboarding re-emitted the confirm verbatim — the repetit
 
 from __future__ import annotations
 
-from tests.support.mock_llm import MockCall, MockLLMClient
+from tests.support.mock_llm import MockCall, MockLLMClient, agent_step
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
 from zapp_assist.graph.nodes._util import REPETITION_TEMPLATES, SMALLTALK_TEMPLATES
@@ -24,8 +24,8 @@ def test_smalltalk_is_acknowledged_not_refused() -> None:
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang="en", confidence=0.97)
-        if name == "IntentSignal":
-            return call.schema(intent="smalltalk", confidence=0.95)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="smalltalk")
         return None
 
     result = _agent(responder).run_turn("st", "thanks a lot for your help!")
@@ -43,8 +43,8 @@ def test_repetition_guard_breaks_a_verbatim_repeat() -> None:
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang="en", confidence=0.97)
-        if name == "IntentSignal":
-            return call.schema(intent="onboarding", confidence=0.95)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="onboarding")
         if name == "OnboardingExtraction":
             return call.schema(
                 full_name="Ana Ruiz",

@@ -12,6 +12,8 @@ Collected slots live on the `Session`, so a value given in an earlier turn is no
 
 from __future__ import annotations
 
+import re
+
 from pydantic import BaseModel
 
 from ...memory.session_store import SlotValue
@@ -30,6 +32,25 @@ from ._util import (
 
 # Required onboarding fields, in the order we ask for them.
 REQUIRED_SLOTS = ("full_name", "phone")
+
+_EMAIL = re.compile(r"\S+@\S+")
+
+
+def looks_like_contact(text: str) -> bool:
+    """Does this message plausibly carry contact/identity data to fill an onboarding slot?
+
+    Gates the deterministic onboarding-in-progress bypass (build.py): a mid-fill turn only stays in
+    onboarding if it actually looks like contact data, so a genuine subject change — a question or a
+    new request — escapes to the agent (which answers it) instead of being force-routed back into
+    slot-filling and then brushed off by the repetition guard.
+    """
+
+    body = (text or "").strip()
+    if not body or "?" in body:  # a question is a subject change, not contact data
+        return False
+    if any(ch.isdigit() for ch in body) or _EMAIL.search(body):  # a phone number or an email
+        return True
+    return len(body.split()) <= 5  # a short name/region phrase ("Ana Torres", "my name is Ana")
 
 _ONBOARD_SYSTEM = (
     "You collect onboarding details for Zapp Assist. From the user's message, extract ONLY the "
@@ -90,6 +111,7 @@ def onboarding(state: TurnState, deps: Deps) -> TurnState:
     start = now()
     cfg = deps.config
     active = state.language.active_lang if state.language else cfg.languages.fallback
+    state.intent = "onboarding"  # set regardless of how we arrived (agent handoff or the slot gate)
 
     res = deps.llm.complete(
         model=cfg.models.primary,

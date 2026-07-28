@@ -63,6 +63,9 @@ class TurnState:
     # internal control/help flags (not part of the external contract)
     blocked: bool = False
     degraded: bool = False
+    # Set by detect_language when the message is confidently in an unsupported language; the router
+    # then skips the agent and returns a fixed "I support ES/EN/PT" reply (never the action flow).
+    unsupported_lang: bool = False
     # target language when the user explicitly asks to switch ("reply in English"); set by
     # detect_language after it flips active_lang, so smalltalk can confirm the switch.
     lang_switch_to: str | None = None

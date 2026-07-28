@@ -20,19 +20,18 @@ from ..obs.trace import Span
 from .deps import Deps
 from .nodes import (
     action_execute,
-    action_plan,
+    agent,
     assemble,
     detect_language,
     guardrail_in,
     guardrail_out,
     onboarding,
     out_of_scope,
-    route_intent,
     smalltalk,
-    support_rag,
     verify_confidence,
     verify_reply_language,
 )
+from .nodes.onboarding import REQUIRED_SLOTS, looks_like_contact
 from .state import TurnState
 
 NodeFn = Callable[[TurnState, Deps], TurnState]
@@ -65,32 +64,41 @@ def _wrap(name: str, fn: NodeFn, deps: Deps, *, always: bool = False) -> Runner:
     return runner
 
 
-def _after_detect(state: GraphState) -> str:
-    return "assemble" if state["ts"].blocked else "route"
-
-
-def _after_intent(state: GraphState) -> str:
+def _route_after_language(state: GraphState) -> str:
     ts = state["ts"]
-    if ts.degraded:
-        return "verify"
-    # A pending action awaiting confirmation makes THIS turn a confirmation response, regardless of
-    # how the router classified it — deterministic human-in-the-loop control (FR-012/013).
+    # A blocked turn, or one in an unsupported language (fixed reply already drafted), skips to
+    # assemble — never through the agent or the action flow.
+    if ts.blocked or ts.unsupported_lang:
+        return "assemble"
+    # A pending action awaiting confirmation makes THIS turn a confirmation response — routed
+    # deterministically straight to execution, never back through the agent. This is the single
+    # human-in-the-loop gate: nothing irreversible runs without an explicit yes (FR-012/013).
     pending = ts.session.pending_action
     if pending is not None and pending.status == "awaiting_confirmation":
         return "action_execute"
-    if ts.intent is None:
+    # An onboarding slot-fill already in progress (some required slots filled, not all) continues
+    # deterministically — but ONLY when the message actually carries contact data. This keeps a
+    # mid-fill phone/email in onboarding (the agent must not re-decide it into `update_contact`,
+    # which drops the fused E.164 + country) while letting a subject change (a question, a new
+    # request) fall through to the agent instead of trapping the user in slot-filling. FR-009/010.
+    filled = sum(1 for slot in REQUIRED_SLOTS if slot in ts.session.slots)
+    if 0 < filled < len(REQUIRED_SLOTS) and looks_like_contact(ts.user_text):
+        return "onboarding"
+    return "agent"
+
+
+def _after_agent(state: GraphState) -> str:
+    ts = state["ts"]
+    if ts.degraded:
         return "verify"
-    if ts.intent == "support":
-        return "support"
+    # The agent defers onboarding / smalltalk / out_of_scope to their specialist nodes; support,
+    # action proposals, and clarify are already answered by the agent → go straight to verify.
     if ts.intent == "onboarding":
         return "onboarding"
-    if ts.intent == "action":
-        return "action_plan"
     if ts.intent == "out_of_scope":
         return "out_of_scope"
     if ts.intent == "smalltalk":
         return "smalltalk"
-    # clarify (draft set in route_intent) or any unmapped intent → straight to verify/assemble.
     return "verify"
 
 
@@ -103,10 +111,9 @@ def build_graph(deps: Deps) -> Any:
 
     graph.add_node("guardrail_in", _wrap("guardrail_in", guardrail_in, deps))
     graph.add_node("detect_language", _wrap("detect_language", detect_language, deps))
-    graph.add_node("route_intent", _wrap("route_intent", route_intent, deps))
-    graph.add_node("support_rag", _wrap("support_rag", support_rag, deps))
+    # The tool-calling agent: one reasoning loop that understands the turn and chooses a tool.
+    graph.add_node("agent", _wrap("agent", agent, deps))
     graph.add_node("onboarding", _wrap("onboarding", onboarding, deps))
-    graph.add_node("action_plan", _wrap("action_plan", action_plan, deps))
     graph.add_node("action_execute", _wrap("action_execute", action_execute, deps))
     graph.add_node("out_of_scope", _wrap("out_of_scope", out_of_scope, deps))
     graph.add_node("smalltalk", _wrap("smalltalk", smalltalk, deps))
@@ -121,25 +128,27 @@ def build_graph(deps: Deps) -> Any:
     graph.add_edge(START, "guardrail_in")
     graph.add_edge("guardrail_in", "detect_language")
     graph.add_conditional_edges(
-        "detect_language", _after_detect, {"assemble": "assemble", "route": "route_intent"}
+        "detect_language",
+        _route_after_language,
+        {
+            "assemble": "assemble",
+            "action_execute": "action_execute",
+            "onboarding": "onboarding",
+            "agent": "agent",
+        },
     )
     graph.add_conditional_edges(
-        "route_intent",
-        _after_intent,
+        "agent",
+        _after_agent,
         {
-            "support": "support_rag",
             "onboarding": "onboarding",
-            "action_plan": "action_plan",
-            "action_execute": "action_execute",
             "out_of_scope": "out_of_scope",
             "smalltalk": "smalltalk",
             "verify": "verify_reply_language",
         },
     )
     # Every path that produces a reply flows through reply-language verification before confidence.
-    graph.add_edge("support_rag", "verify_reply_language")
     graph.add_edge("onboarding", "verify_reply_language")
-    graph.add_edge("action_plan", "verify_reply_language")
     graph.add_edge("action_execute", "verify_reply_language")
     graph.add_edge("out_of_scope", "verify_reply_language")
     graph.add_edge("smalltalk", "verify_reply_language")

@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.mock_llm import MockCall, MockLLMClient, scripted_llm
+from tests.support.mock_llm import MockCall, MockLLMClient, agent_step, scripted_llm
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
-from zapp_assist.graph.nodes._util import LANG_MISMATCH_TEMPLATES, LANGUAGE_SWITCH_TEMPLATES
+from zapp_assist.graph.nodes._util import (
+    LANG_MISMATCH_TEMPLATES,
+    LANGUAGE_SWITCH_TEMPLATES,
+    UNSUPPORTED_LANG_TEMPLATES,
+)
 from zapp_assist.lang.detector import LinguaDetector
 
 EN_Q = "How late can I reschedule a delivery?"
@@ -44,10 +48,10 @@ def _mm_llm(
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang=lang, confidence=0.97)
-        if name == "IntentSignal":
-            return call.schema(intent="support", confidence=0.95)
-        if name == "GroundedAnswer":
-            return call.schema(reply=grounded_reply, citations=citations or [], grounded=True)
+        if name == "AgentStep":
+            return agent_step(
+                call.schema, call, intent="support", reply=grounded_reply, grounded=True
+            )
         if name == "RewrittenReply":
             return call.schema(reply=rewrite) if rewrite else None
         return None
@@ -136,8 +140,8 @@ def _coherence_llm() -> MockLLMClient:
         if name == "LangSignal":
             lang, conf = _DET.language_of(_last_user(call))
             return call.schema(lang=lang, confidence=conf)
-        if name == "IntentSignal":
-            return call.schema(intent="clarify", confidence=0.9)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="clarify")
         return None
 
     return MockLLMClient(responder=responder)
@@ -186,8 +190,8 @@ def _switch_smalltalk_llm() -> MockLLMClient:
         if name == "LangSignal":
             lang, conf = _DET.language_of(_last_user(call))
             return call.schema(lang=lang, confidence=conf)
-        if name == "IntentSignal":
-            return call.schema(intent="smalltalk", confidence=0.95)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="smalltalk")
         return None
 
     return MockLLMClient(responder=responder)
@@ -251,3 +255,27 @@ def test_low_confidence_input_uses_fallback_safely() -> None:
     assert result.active_lang == "en"
     assert result.reply
     assert _lang_of(result.reply) == "en"
+
+
+def test_unsupported_language_gets_a_fallback_and_skips_the_action_flow() -> None:
+    # French is confidently NOT es/en/pt → a fixed "I support ES/EN/PT" reply in the fallback
+    # language, needs_review, and the agent/action flow is never entered (was an order-number ask).
+    result = _agent(MockLLMClient()).run_turn(
+        "fr", "Bonjour, je voudrais annuler ma commande immédiatement"
+    )
+    assert result.detected_lang == "fr" and result.active_lang == "en"
+    assert result.needs_review is True
+    assert result.reply == UNSUPPORTED_LANG_TEMPLATES["en"]
+
+
+def test_short_greeting_locks_the_users_language_on_the_first_turn() -> None:
+    # A one-word "hola" that lingua alone rates below the lock threshold (0.45) still adopts Spanish
+    # when the LLM agrees — the reply is Spanish, not English. (Regression: greeting -> en.)
+    r = _agent(scripted_llm(lang="es", intent="smalltalk")).run_turn("greet-es", "hola")
+    assert r.detected_lang == "es" and r.active_lang == "es"
+
+
+def test_short_greeting_trusts_the_llm_when_lingua_is_uncertain() -> None:
+    # "olá" is mis-rated es by lingua on 3 chars; on a short first turn the LLM's pt breaks the tie.
+    r = _agent(scripted_llm(lang="pt", intent="smalltalk")).run_turn("greet-pt", "olá")
+    assert r.detected_lang == "pt" and r.active_lang == "pt"

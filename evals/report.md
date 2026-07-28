@@ -1,26 +1,27 @@
 # Zapp Assist — Evaluation Report
 
-**Overall: ✅ PASS**  ·  cases: 20  ·  _deterministic core + live LLM-judged quality tier (deepeval)_
+**Overall: ✅ PASS**  ·  cases: 21  ·  _deterministic (scripted model + rule-based judge) (+4 live-tier metric(s) carried from a prior keyed run)_
 
 ## Metrics
 
 | Metric | Score | Threshold | Result |
 | --- | --- | --- | --- |
-| task_success | 1.0 (20/20 cases) | ≥ 0.9 | PASS |
-| language_fidelity | 1.0 (20/20 in expected language) | ≥ 0.95 | PASS |
+| task_success | 1.0 (21/21 cases) | ≥ 0.9 | PASS |
+| language_fidelity | 1.0 (21/21 in expected language) | ≥ 0.95 | PASS |
 | guardrail_recall | 1.0 (TP=4 FN=0) | ≥ 0.9 | PASS |
 | guardrail_precision | 1.0 (TP=4 FP=0) | ≥ 0.9 | PASS |
-| judge_quality | 4.888 (avg of 20 (out of 5)) | ≥ 3.5 | PASS |
-| latency_p95_ms | 20.309 (per-turn p95) | ≤ 5000.0 | PASS |
-| cost_per_convo | 0.002565 (mean per case) | ≤ 0.05 | PASS |
-| llm_judge_quality | 4.588 (LLM-as-judge over 20 live replies (out of 5)) | ≥ 3.5 | PASS |
-| rag_faithfulness | 0.938 (deepeval, 4 grounded cases [0-1]) | ≥ 0.7 | PASS |
-| rag_contextual_relevancy | 0.356 (deepeval, 5 grounded cases [0-1]) | ≥ 0.2 | PASS |
+| judge_quality | 4.893 (avg of 21 (out of 5)) | ≥ 3.5 | PASS |
+| latency_p95_ms | 30.946 (per-turn p95) | ≤ 5000.0 | PASS |
+| cost_per_convo | 0.002229 (mean per case) | ≤ 0.05 | PASS |
+| live_task_success | 0.9524 (task success over LIVE agent outputs (real tool selection); carried from a prior keyed run) | ≥ 0.9 | PASS |
+| llm_judge_quality | 4.595 (LLM-as-judge over 21 live replies (out of 5); carried from a prior keyed run) | ≥ 3.5 | PASS |
+| rag_faithfulness | 0.938 (deepeval, 4 grounded cases [0-1]; carried from a prior keyed run) | ≥ 0.7 | PASS |
+| rag_contextual_relevancy | 0.356 (deepeval, 5 grounded cases [0-1]; carried from a prior keyed run) | ≥ 0.2 | PASS |
 
 ## Operational
 
-- latency p50: 5.822 ms · p95: 20.309 ms
-- estimated cost / conversation: $0.002565
+- latency p50: 5.28 ms · p95: 30.946 ms
+- estimated cost / conversation: $0.002229
 
 ## Task success by capability
 
@@ -33,6 +34,6 @@
 
 ## Judge rubric (deterministic proxy)
 
-- rule-based average: 4.888 / 5 (helpfulness, groundedness, safety, language)
+- rule-based average: 4.893 / 5 (helpfulness, groundedness, safety, language)
 - the real LLM-as-judge (temperature 0) is `llm_judge_quality` in the metrics table,
   populated when a key is present (the key-adaptive quality tier).

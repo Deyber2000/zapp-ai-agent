@@ -113,7 +113,12 @@ def render_markdown(report: EvalReport) -> str:
 # silently drop them from the committed report — a reviewer running `zapp-eval` per the README would
 # otherwise wipe the very numbers the brief asks for, and the drift guard can't catch it (it
 # excludes them as non-reproducible). Carry a prior keyed run's rows forward, labelled.
-_LIVE_TIER_METRICS = ("llm_judge_quality", "rag_faithfulness", "rag_contextual_relevancy")
+_LIVE_TIER_METRICS = (
+    "live_task_success",
+    "llm_judge_quality",
+    "rag_faithfulness",
+    "rag_contextual_relevancy",
+)
 _CARRIED_LABEL = "carried from a prior keyed run"
 
 
@@ -125,7 +130,11 @@ def _carry_forward_live_tier(report: EvalReport, existing_json: Path) -> None:
     """
 
     present = {m.name for m in report.metrics}
-    if any(name in present for name in _LIVE_TIER_METRICS) or not existing_json.exists():
+    # Top up ONLY the live-tier metrics THIS run lacks (rather than skipping the moment any live
+    # metric is present) — so a keyed run without deepeval still preserves the carried RAG numbers
+    # while its own live_task_success / judge stay fresh.
+    missing = [name for name in _LIVE_TIER_METRICS if name not in present]
+    if not missing or not existing_json.exists():
         return
     try:
         prior = EvalReport.model_validate_json(existing_json.read_text(encoding="utf-8"))
@@ -133,7 +142,7 @@ def _carry_forward_live_tier(report: EvalReport, existing_json: Path) -> None:
         return
     carried = 0
     for m in prior.metrics:
-        if m.name in _LIVE_TIER_METRICS and m.name not in present:
+        if m.name in missing:
             if not m.detail:
                 detail: str | None = _CARRIED_LABEL
             elif _CARRIED_LABEL in m.detail:

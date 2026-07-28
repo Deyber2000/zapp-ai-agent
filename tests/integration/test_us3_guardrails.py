@@ -9,7 +9,7 @@ with a safe decline; the offending content is never returned.
 
 from __future__ import annotations
 
-from tests.support.mock_llm import MockCall, MockLLMClient, scripted_llm
+from tests.support.mock_llm import MockCall, MockLLMClient, agent_step, scripted_llm
 from zapp_assist.agent import Agent
 from zapp_assist.config import AppConfig, RulePolicy, load_config
 from zapp_assist.guardrails.semantic import SafetyFinding
@@ -79,12 +79,10 @@ def test_semantic_layer_on_clean_turn_processes_normally_both_stages() -> None:
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang="en", confidence=0.9)
-        if name == "IntentSignal":
-            return call.schema(intent="support", confidence=0.9)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="support", reply=reply)
         if name == "SafetyAssessment":
             return call.schema(findings=[])  # clean on both input and output stages
-        if name == "GroundedAnswer":
-            return call.schema(reply=reply, citations=["delivery_reschedule_en"], grounded=True)
         return None
 
     agent = Agent.create(config=_cfg(semantic=True), llm=MockLLMClient(responder=responder))

@@ -107,10 +107,10 @@ stateDiagram-v2
     [*] --> Unlocked
 
     Unlocked --> Unlocked: weak or unsupported detection, reply in fallback en
-    Unlocked --> Locked: first confident supported detection at or above 0.75
+    Unlocked --> Locked: first turn — lingua and the LLM agree, or confidence >= 0.75, or short + LLM breaks the es/pt tie
 
     Locked --> Locked: same language, or weak, short, or unsupported turn
-    Locked --> Pending: different supported language, confidence at or above 0.75, at least 12 chars
+    Locked --> Pending: different supported language, confidence >= 0.75, >= 2 words
 
     Pending --> Locked: any matching or weak turn resets the accumulator
     Pending --> Pending: a different new candidate restarts the count at 1

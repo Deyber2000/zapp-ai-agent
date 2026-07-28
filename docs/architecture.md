@@ -117,6 +117,52 @@ flowchart LR
     class X gap;
 ```
 
+### The components
+
+`Agent.create(...)` wires the whole system once and hands back an `Agent`; every later `run_turn` reuses
+these parts. There are three groups: the **injected dependencies** (`Deps`, read by every node), the
+**session store** (multi-turn memory), and the **graph** of eleven pure nodes. Each box below is a real
+module or class — this is the map for "what components do we have, and what does each one do".
+
+```mermaid
+flowchart TB
+    CREATE["<b>Agent.create(config, llm?, store?, …)</b> → Agent<br/>wires the parts once · then agent.run_turn(session_id, text) per turn"]
+    CREATE --> DEPS
+    CREATE --> STORE
+    CREATE --> GRAPH
+
+    subgraph DEPS["<b>Deps</b> — injected once, read by every node · graph/deps.py"]
+        direction TB
+        LLM["<b>llm : LLMClient</b><br/>one provider-agnostic call site per node<br/>impl: OpenAIAdapter · AnthropicAdapter · MockLLMClient (tests)"]
+        RAG["<b>rag : Retriever</b><br/>grounds support answers from the KB<br/>impl: AdvancedRetriever → HybridRetriever(BM25Store + DenseRetriever)"]
+        GRD["<b>guardrails : GuardrailRegistry</b><br/>input/output safety — regex rules + optional LLM semantic layer"]
+        TOOLS["<b>tools : ToolRegistry</b><br/>normalize_contact + MockBackend order/account actions"]
+        DET["<b>detector : LanguageDetector</b><br/>deterministic language ID · impl: LinguaDetector (lingua)"]
+        CFG["<b>config : AppConfig</b><br/>config.yaml — models, thresholds, languages, retrieval, guardrail policy"]
+    end
+
+    STORE["<b>store : SessionStore</b><br/>multi-turn memory: pending action · onboarding slots · history · lang lock<br/>impl: InMemorySessionStore · FileSessionStore (.zapp_sessions/)"]
+
+    subgraph GRAPH["<b>build_graph(deps)</b> : LangGraph StateGraph — the ONLY orchestration-aware module · graph/build.py"]
+        direction TB
+        G1["<b>input</b> — guardrail_in → detect_language"]
+        G2["<b>understand</b> — agent (tool-calling ReAct loop)<br/>specialists it defers to: onboarding · smalltalk · out_of_scope · action_execute"]
+        G3["<b>verify + emit</b> — verify_reply_language → verify_confidence → guardrail_out → assemble"]
+        G1 --> G2 --> G3
+    end
+
+    G2 -.->|reasons with| LLM
+    G2 -.->|search_kb| RAG
+    G2 -.->|proposes / reads| TOOLS
+
+    classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
+    classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;
+    class LLM,RAG,G2 llm;
+    class GRD,TOOLS,DET,CFG,STORE,G1,G3 det;
+```
+
+The turn graph below shows how these components run in sequence for one turn.
+
 ### The turn graph
 
 ```mermaid

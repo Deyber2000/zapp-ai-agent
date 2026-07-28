@@ -53,7 +53,7 @@ flowchart TB
     PASS --> OUT
     BLK --> OUT
 
-    OOS["semantic off-topic that dodged the regex<br/>is caught by the router and the out_of_scope node<br/>which writes its own refuse decision into guardrails.input"]
+    OOS["off-topic the regex misses:<br/>the LLM semantic layer catches it (when enabled), else the<br/>agent hands off to the out_of_scope node for a safe decline"]
     OOS -.-> OUT
 
     classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;

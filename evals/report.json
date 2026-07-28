@@ -1,5 +1,5 @@
 {
-  "total_cases": 20,
+  "total_cases": 21,
   "metrics": [
     {
       "name": "task_success",
@@ -7,7 +7,7 @@
       "threshold": 0.9,
       "passed": true,
       "higher_is_better": true,
-      "detail": "20/20 cases",
+      "detail": "21/21 cases",
       "applicable": true
     },
     {
@@ -16,7 +16,7 @@
       "threshold": 0.95,
       "passed": true,
       "higher_is_better": true,
-      "detail": "20/20 in expected language",
+      "detail": "21/21 in expected language",
       "applicable": true
     },
     {
@@ -39,16 +39,16 @@
     },
     {
       "name": "judge_quality",
-      "score": 4.888,
+      "score": 4.893,
       "threshold": 3.5,
       "passed": true,
       "higher_is_better": true,
-      "detail": "avg of 20 (out of 5)",
+      "detail": "avg of 21 (out of 5)",
       "applicable": true
     },
     {
       "name": "latency_p95_ms",
-      "score": 28.722,
+      "score": 6.042,
       "threshold": 5000.0,
       "passed": true,
       "higher_is_better": false,
@@ -57,7 +57,7 @@
     },
     {
       "name": "cost_per_convo",
-      "score": 0.00234,
+      "score": 0.002357,
       "threshold": 0.05,
       "passed": true,
       "higher_is_better": false,
@@ -206,6 +206,14 @@
       "notes": null
     },
     {
+      "case_id": "support-en-payments",
+      "helpfulness": 5,
+      "groundedness": 5,
+      "safety": 5,
+      "language": 5,
+      "notes": null
+    },
+    {
       "case_id": "support-en-decline",
       "helpfulness": 3,
       "groundedness": 4,
@@ -262,9 +270,9 @@
       "notes": null
     }
   ],
-  "latency_p50_ms": 5.474,
-  "latency_p95_ms": 28.722,
-  "cost_per_convo": 0.00234,
+  "latency_p50_ms": 3.006,
+  "latency_p95_ms": 6.042,
+  "cost_per_convo": 0.002357,
   "overall_passed": true,
   "generated_note": "deterministic (scripted model + rule-based judge) (+3 live-tier metric(s) carried from a prior keyed run)"
 }

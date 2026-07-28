@@ -42,6 +42,7 @@ from ._action import (
     ACTION_NOT_FOUND,
     ACTION_TRACK,
     ACTION_UNSUPPORTED,
+    is_bare_confirmation,
     summarize_action,
 )
 from ._util import CLARIFY_TEMPLATES, DECLINE_TEMPLATES, add_span, now, recent_history, tmpl
@@ -82,8 +83,9 @@ def _system(active_lang: str) -> str:
         f"- answer: give the final reply in {language} (fill `reply`), using ONLY facts from the "
         "KB snippets or tool results above. If nothing supports an answer, set grounded=false.\n"
         "- handoff: defer to a specialist (fill `target`): 'onboarding' when the user is giving "
-        "contact/identity details, 'smalltalk' for greetings/thanks/social or a language-switch, "
-        "'out_of_scope' for off-topic or unsafe requests, 'clarify' when the intent is ambiguous.\n"
+        "contact/identity details; 'smalltalk' for a greeting, thanks, apology, or social remark, "
+        "or a language-switch request; 'out_of_scope' for off-topic or unsafe requests; 'clarify' "
+        "ONLY when the user is asking for something but you cannot tell what.\n"
         "\nRules:\n"
         "1. A QUESTION about whether or how to do something ('can I close my account?', 'how do I "
         "cancel?') is answered from the KB — never proposed as a state change.\n"
@@ -187,8 +189,14 @@ def agent(state: TurnState, deps: Deps) -> TurnState:
     start = now()
     cfg = deps.config
     active = state.language.active_lang if state.language else cfg.languages.fallback
-    system = _system(active)
 
+    # Deterministic backstop (Constitution X): a bare "yes/ok/no" only reaches the agent when
+    # nothing is pending to confirm — so it asks for nothing. Force a clarify in code rather than
+    # trust the model to obey the prompt rule (live testing showed it re-arming from history).
+    if is_bare_confirmation(state.user_text):
+        return _handoff(state, start, active, "clarify")
+
+    system = _system(active)
     history = recent_history(state.session)
     opening = f"{history}\n\nCurrent message: {state.user_text}" if history else state.user_text
     working: list[dict[str, str]] = [{"role": "user", "content": opening}]

@@ -24,6 +24,7 @@ from zapp_assist.memory.session_store import Session
 from zapp_assist.obs.trace import Trace
 
 from .judge import LLMJudge
+from .metrics import task_success
 from .models import EvalCase, EvalThresholds, JudgeVerdict, MetricResult, RunRecord
 
 # deepeval's RAG metrics are slow (many sub-calls each); cap them to a representative sample of
@@ -168,9 +169,21 @@ def run_quality_tier(
         graph = build_graph(agent.deps)
         live = [_run_live_case(case, graph, agent) for case in cases]
 
+        # Task success over the LIVE outputs — the deterministic tier pins the model's decision via
+        # MockScript, so it never exercises tool selection (the thing the agent refactor changed).
+        # This metric does: it runs the real agent and scores the observed outcome vs each label, so
+        # a routing/tool regression shows up here even though the scripted core stays green.
+        records = [lv.record for lv in live]
+        live_task = task_success(records, cases, thresholds).model_copy(
+            update={
+                "name": "live_task_success",
+                "detail": "task success over LIVE agent outputs (real tool selection)",
+            }
+        )
+
         judge = LLMJudge(agent.deps.llm, live_cfg)
         verdicts = [judge.score(lv.case, lv.record) for lv in live if lv.record.result is not None]
-        metrics: list[MetricResult] = []
+        metrics: list[MetricResult] = [live_task]
         judge_metric = _judge_metric(verdicts, thresholds)
         if judge_metric is not None:
             metrics.append(judge_metric)

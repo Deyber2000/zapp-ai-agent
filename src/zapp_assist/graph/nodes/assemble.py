@@ -66,13 +66,13 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
         if state.blocked and not reply:
             reply = tmpl(GUARDRAIL_DECLINE_TEMPLATES, active)
 
-        # Repetition guard: don't re-emit a reply we just sent (e.g. a completed onboarding re-run
-        # when the user supplies an already-captured detail). Compare against the last few replies,
-        # normalized for case/whitespace, so the agent can't ping-pong reply/nudge/reply or slip a
-        # near-duplicate. Skipped while an action awaits confirmation, where re-asking the same
-        # question verbatim is intentional (never say "already shared that" to a pending confirm).
+        # Repetition guard: catch a completed onboarding re-emitting its confirm verbatim when the
+        # user supplies an already-captured detail. Scoped to onboarding ONLY — a repeated tool/KB
+        # answer (e.g. re-checking a status, "and can you track it?") reflects fresh data and must
+        # not be swallowed, and a repeated greeting is fine. Skipped while a confirm is pending.
         if (
             reply
+            and state.intent == "onboarding"
             and state.session.pending_action is None
             and _norm_reply(reply) in _recent_replies(state)
         ):

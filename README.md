@@ -89,17 +89,17 @@ engine and the model vendor are each isolated behind one seam.
 flowchart LR
     A[guardrail_in] --> B[detect_language]
     B -->|blocked| Z[assemble]
-    B --> C[route_intent]
-    C -->|support| D[support_rag]
-    C -->|onboarding| E[onboarding]
-    C -->|action| F[action_plan]
-    C -->|pending confirm| G[action_execute]
-    C -->|out_of_scope| H[out_of_scope]
-    C -->|clarify / degraded| V[verify_confidence]
-    D --> V
+    B -->|pending confirm| G[action_execute]
+    B -->|onboarding in progress| E[onboarding]
+    B -->|else| C[agent]
+    C -->|"search_kb: retrieve, feed back"| C
+    C -->|handoff onboarding| E
+    C -->|handoff smalltalk| S[smalltalk]
+    C -->|handoff out_of_scope| H[out_of_scope]
+    C -->|"answer / lookup / propose / clarify"| V[verify_confidence]
     E --> V
-    F --> V
     G --> V
+    S --> V
     H --> V
     V --> O[guardrail_out]
     O --> Z[assemble]

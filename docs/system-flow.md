@@ -41,7 +41,7 @@ flowchart TB
     subgraph SERVE["SERVING TIME — run per user message"]
         direction TB
         S0["Agent.create — once per process<br/>load config + secrets, pick the provider adapter,<br/>build BM25 index, embed the KB, compile the graph"]
-        S0 --> S1["Agent.run_turn — once per message<br/>load session, run the 12-node graph,<br/>save session, return the contract"]
+        S0 --> S1["Agent.run_turn — once per message<br/>load session, run the 11-node graph,<br/>save session, return the contract"]
         S1 --> SA[("TurnResult — always schema-valid")]
         S1 --> SB[("Trace — spans, tokens, cost, latency")]
     end
@@ -115,17 +115,15 @@ sequenceDiagram
     L-->>N: LangSignal es 0.96
     N->>N: lingua wins, LLM only adjusts confidence, lock active_lang
     N->>T: span + token usage and cost
-    G->>N: route_intent
-    N->>L: intent classification
-    L-->>N: support 0.95
-    N->>T: span
-    G->>N: support_rag
+    G->>N: agent
+    N->>L: reason over the message, choose a tool
+    L-->>N: AgentStep — tool = search_kb
     N->>R: search
     R->>R: BM25 union dense, RRF-fused, trimmed to top_k
     R-->>N: ranked documents with scores
-    N->>L: answer strictly from these snippets
-    L-->>N: GroundedAnswer with a grounded flag
-    N->>T: span — grounded, hits, top_score
+    N->>L: next step — answer strictly from these snippets
+    L-->>N: AgentStep — tool = answer, grounded flag
+    N->>T: one span — tool, grounded (the loop spent 2 LLM calls)
     G->>N: verify_reply_language
     N->>N: lingua on the reply — matches, no LLM spent
     N->>T: span — reply_match true
@@ -252,15 +250,14 @@ flowchart LR
     F6 --> H6["honest message — I could not find that order<br/>+ needs_review"]
     F7 --> H7["zero decisions returned<br/>degrade to the regex layer, never fail open"]
     F8 --> H8["the stage becomes a no-op<br/>base retrieval result stands"]
-    F9 --> H9["decline template<br/>+ needs_review, no model call"]
+    F9 --> H9["decline template<br/>+ needs_review<br/>agent sets grounded = false"]
     F10 --> H10["safe in-language template<br/>+ needs_review"]
     F11 --> H11["reply in the fallback language<br/>+ needs_review, no lock, no switch"]
     F12 --> H12["TurnResult.safe_fallback<br/>built from clamped primitives"]
 
     H1 --> ROUTE{"which node<br/>asked?"}
     ROUTE -->|"detect_language"| KEEP["keep the deterministic detection<br/>the turn is NOT degraded for a missing second opinion"]
-    ROUTE -->|"route_intent, onboarding, action_plan"| DEG["mark the turn degraded<br/>downstream nodes are skipped"]
-    ROUTE -->|"support_rag"| H9
+    ROUTE -->|"agent, onboarding"| DEG["mark the turn degraded<br/>downstream nodes are skipped"]
     ROUTE -->|"verify_reply_language"| H10
 
     H4 --> BM["BM25 floor — still grounds, still declines correctly"]
@@ -367,7 +364,7 @@ flowchart TB
         EV["runner · metrics · judge · report<br/>owns its own ScriptedLLM"]
     end
 
-    subgraph nodes["graph/nodes/ — 12 pure handlers"]
+    subgraph nodes["graph/nodes/ — 11 pure handlers"]
         ND["node state, deps -> state<br/>imports NO framework and NO SDK"]
     end
 

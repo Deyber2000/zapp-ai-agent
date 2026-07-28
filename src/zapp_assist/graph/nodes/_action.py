@@ -48,6 +48,25 @@ def classify_confirmation(text: str) -> Confirmation:
     return "ambiguous"
 
 
+# An order id as used across the backend/KB (e.g. A1001): a letter + 3+ digits.
+_ORDER_ID = re.compile(r"\b[A-Za-z]\d{3,}\b")
+
+
+def is_bare_confirmation(text: str) -> bool:
+    """A yes/no that carries no request of its own — e.g. 'yes go ahead', not 'yes, cancel A1001'.
+
+    Reused at the agent's entry: such a reply reaches the agent only when nothing is pending to
+    confirm (a real pending confirmation is routed to `action_execute` first), so it asks for
+    nothing and must never let the model re-arm an action from history. Deterministic (Constitution
+    X), at the one boundary where it matters — not a referee over the model's understanding.
+    """
+
+    body = (text or "").strip()
+    if classify_confirmation(body) == "ambiguous":
+        return False
+    return len(body.split()) <= 4 and "?" not in body and not _ORDER_ID.search(body)
+
+
 def summarize_action(action: str, params: dict, lang: str) -> str:
     """A short human restatement of the action, in the active language (for confirm/done/re-ask)."""
 

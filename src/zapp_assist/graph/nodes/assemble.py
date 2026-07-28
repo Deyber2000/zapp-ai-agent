@@ -53,6 +53,9 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
     start = now()
     fallback_lang = deps.config.languages.fallback
     guardrails = Guardrails(input=state.guardrails_in, output=state.guardrails_out)
+    # Never retain raw PII in the contract: if the input guardrail redacted it, use the masked text
+    # for final_normalized_text on every path — including the degraded/error fallbacks (FR-008).
+    retained_input = state.redacted_input if state.redacted_input is not None else state.user_text
 
     try:
         active = state.language.active_lang if state.language else fallback_lang
@@ -82,7 +85,7 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
                 active_lang=active,
                 detected_lang=detected,
                 lang_confidence=lang_conf,
-                final_normalized_text=state.user_text,
+                final_normalized_text=retained_input,
                 guardrails=guardrails,
             )
             add_span(state.trace, "assemble", start, attrs={"fallback": True})
@@ -99,7 +102,9 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
         needs_review = state.needs_review or state.degraded or state.needs_review_override
 
         norm = state.normalization
-        final_norm = norm.canonical if (norm and norm.canonical) else state.user_text
+        # A deliberately normalized value (e.g. onboarding's E.164 phone) wins; otherwise the
+        # retained (PII-masked when redacted) input.
+        final_norm = norm.canonical if (norm and norm.canonical) else retained_input
         country = norm.country if norm else None
 
         state.result = TurnResult(
@@ -118,7 +123,7 @@ def assemble(state: TurnState, deps: Deps) -> TurnState:
         state.result = TurnResult.safe_fallback(
             reply=tmpl(SAFE_FALLBACK_TEMPLATES, fallback_lang),
             active_lang=fallback_lang,
-            final_normalized_text=state.user_text,
+            final_normalized_text=retained_input,
             guardrails=guardrails,
         )
         add_span(

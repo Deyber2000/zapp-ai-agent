@@ -157,7 +157,8 @@ category, severity, action, and detecting layer, sufficient to compute precision
 - **Multiple triggers**: several rules fire on one turn — all decisions are recorded; the most severe
   action governs the outcome.
 - **Redaction vs refusal**: PII in input is redacted (processing continues); a high-severity attack is
-  refused (processing stops).
+  refused (processing stops). Redaction is *applied*, not merely recorded — the masked (not raw) input
+  is what the turn retains and returns (e.g. in the contract's normalized-input field).
 - **Empty/whitespace input**: handled without error.
 
 ## Requirements *(mandatory)*

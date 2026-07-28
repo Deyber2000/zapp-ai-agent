@@ -60,6 +60,11 @@ def action_execute(state: TurnState, deps: Deps) -> TurnState:
         add_span(state.trace, "action_execute", start, attrs={"pending": False})
         return state
 
+    # A confirmation turn now bypasses the agent (deterministic HITL gate), so record the intent and
+    # a high certainty here — the yes/no read is deterministic and the action was already validated.
+    state.intent = "action"
+    state.intent_confidence = 1.0
+
     summary = summarize_action(pending.name, pending.params, active)
     decision = classify_confirmation(state.user_text)
 

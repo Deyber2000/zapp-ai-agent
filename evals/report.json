@@ -48,7 +48,7 @@
     },
     {
       "name": "latency_p95_ms",
-      "score": 20.309,
+      "score": 28.722,
       "threshold": 5000.0,
       "passed": true,
       "higher_is_better": false,
@@ -57,7 +57,7 @@
     },
     {
       "name": "cost_per_convo",
-      "score": 0.002565,
+      "score": 0.00234,
       "threshold": 0.05,
       "passed": true,
       "higher_is_better": false,
@@ -70,7 +70,7 @@
       "threshold": 3.5,
       "passed": true,
       "higher_is_better": true,
-      "detail": "LLM-as-judge over 20 live replies (out of 5)",
+      "detail": "LLM-as-judge over 20 live replies (out of 5); carried from a prior keyed run",
       "applicable": true
     },
     {
@@ -79,7 +79,7 @@
       "threshold": 0.7,
       "passed": true,
       "higher_is_better": true,
-      "detail": "deepeval, 4 grounded cases [0-1]",
+      "detail": "deepeval, 4 grounded cases [0-1]; carried from a prior keyed run",
       "applicable": true
     },
     {
@@ -88,7 +88,7 @@
       "threshold": 0.2,
       "passed": true,
       "higher_is_better": true,
-      "detail": "deepeval, 5 grounded cases [0-1]",
+      "detail": "deepeval, 5 grounded cases [0-1]; carried from a prior keyed run",
       "applicable": true
     }
   ],
@@ -262,9 +262,9 @@
       "notes": null
     }
   ],
-  "latency_p50_ms": 5.822,
-  "latency_p95_ms": 20.309,
-  "cost_per_convo": 0.002565,
+  "latency_p50_ms": 5.474,
+  "latency_p95_ms": 28.722,
+  "cost_per_convo": 0.00234,
   "overall_passed": true,
-  "generated_note": "deterministic core + live LLM-judged quality tier (deepeval)"
+  "generated_note": "deterministic (scripted model + rule-based judge) (+3 live-tier metric(s) carried from a prior keyed run)"
 }

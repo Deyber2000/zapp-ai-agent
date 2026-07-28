@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.support.mock_llm import MockCall, MockLLMClient, scripted_llm
+from tests.support.mock_llm import MockCall, MockLLMClient, agent_step, scripted_llm
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
 from zapp_assist.graph.nodes._util import LANG_MISMATCH_TEMPLATES, LANGUAGE_SWITCH_TEMPLATES
@@ -44,10 +44,10 @@ def _mm_llm(
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang=lang, confidence=0.97)
-        if name == "IntentSignal":
-            return call.schema(intent="support", confidence=0.95)
-        if name == "GroundedAnswer":
-            return call.schema(reply=grounded_reply, citations=citations or [], grounded=True)
+        if name == "AgentStep":
+            return agent_step(
+                call.schema, call, intent="support", reply=grounded_reply, grounded=True
+            )
         if name == "RewrittenReply":
             return call.schema(reply=rewrite) if rewrite else None
         return None
@@ -136,8 +136,8 @@ def _coherence_llm() -> MockLLMClient:
         if name == "LangSignal":
             lang, conf = _DET.language_of(_last_user(call))
             return call.schema(lang=lang, confidence=conf)
-        if name == "IntentSignal":
-            return call.schema(intent="clarify", confidence=0.9)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="clarify")
         return None
 
     return MockLLMClient(responder=responder)
@@ -186,8 +186,8 @@ def _switch_smalltalk_llm() -> MockLLMClient:
         if name == "LangSignal":
             lang, conf = _DET.language_of(_last_user(call))
             return call.schema(lang=lang, confidence=conf)
-        if name == "IntentSignal":
-            return call.schema(intent="smalltalk", confidence=0.95)
+        if name == "AgentStep":
+            return agent_step(call.schema, call, intent="smalltalk")
         return None
 
     return MockLLMClient(responder=responder)

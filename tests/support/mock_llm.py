@@ -21,6 +21,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from zapp_assist.llm.client import LLMResult, Msg, Usage
+from zapp_assist.tools.mock_backend import READ_ONLY, STATE_CHANGING
 
 # Distinctive markers only (avoid ES/PT-shared words like "entrega"/"pedido"/"conta").
 _ES_HINTS = re.compile(
@@ -110,15 +111,13 @@ class MockLLMClient:
     def _default_for(self, call: MockCall) -> Any:
         assert call.schema is not None
         name = call.schema.__name__
-        text = _last_user(call)
+        cur = _current_message(call)
         if name == "LangSignal":
-            return call.schema(lang=_guess_lang(text), confidence=0.95)
-        if name == "IntentSignal":
-            return call.schema(intent=_guess_intent(text), confidence=0.9)
-        if name == "GroundedAnswer":
-            return call.schema(
-                reply=f"(mock grounded answer) {text}".strip(), citations=[], grounded=True
-            )
+            return call.schema(lang=_guess_lang(cur), confidence=0.95)
+        if name == "AgentStep":
+            # No script: onboarding-looking input hands off; everything else answers from the KB.
+            intent = "onboarding" if _ONBOARD_HINTS.search(cur) else "support"
+            return agent_step(call.schema, call, intent=intent)
         return None
 
 
@@ -131,10 +130,17 @@ def scripted_llm(
     reply: str | None = None,
     citations: list[str] | None = None,
     grounded: bool = True,
+    action: str | None = None,
+    order_id: str | None = None,
+    new_time: str | None = None,
+    field: str | None = None,
+    value: str | None = None,
 ) -> MockLLMClient:
-    """Build a mock whose LangSignal / IntentSignal / GroundedAnswer are fixed for a test case.
+    """Build a mock whose LangSignal + AgentStep are fixed for a test case.
 
-    Uses the schema class passed on each call, so no node schema needs importing here.
+    `intent`/`action` map onto the tool the agent would choose (support → search_kb then answer;
+    action → a read/state-change tool; onboarding/smalltalk/out_of_scope → handoff). Uses the schema
+    class passed on each call, so no node schema needs importing here.
     """
 
     def responder(call: MockCall) -> Any:
@@ -143,14 +149,52 @@ def scripted_llm(
         name = call.schema.__name__
         if name == "LangSignal":
             return call.schema(lang=lang, confidence=lang_confidence)
-        if name == "IntentSignal":
-            return call.schema(intent=intent, confidence=intent_confidence)
-        if name == "GroundedAnswer":
-            text = reply if reply is not None else _last_user(call)
-            return call.schema(reply=text, citations=citations or [], grounded=grounded)
+        if name == "AgentStep":
+            return agent_step(
+                call.schema, call, intent=intent, action=action, reply=reply, grounded=grounded,
+                order_id=order_id, new_time=new_time, field=field, value=value,
+            )
         return None
 
     return MockLLMClient(responder=responder)
+
+
+def agent_step(
+    schema: type[BaseModel],
+    call: MockCall,
+    *,
+    intent: str = "support",
+    action: str | None = None,
+    reply: str | None = None,
+    grounded: bool = True,
+    order_id: str | None = None,
+    new_time: str | None = None,
+    field: str | None = None,
+    value: str | None = None,
+) -> BaseModel:
+    """Synthesize the agent's next `AgentStep` from a legacy-style script, conversation-driven.
+
+    Support answers take two steps (search_kb, then answer once snippets are present); reads and
+    state-changes are a single tool step; onboarding/smalltalk/out_of_scope/clarify hand off.
+    """
+
+    cur = _current_message(call)
+    if intent in ("onboarding", "smalltalk", "out_of_scope", "clarify"):
+        return schema(tool="handoff", target=intent)
+    if intent == "action":
+        if action in READ_ONLY:
+            return schema(tool=action, order_id=order_id)
+        if action in STATE_CHANGING:
+            return schema(
+                tool=action, order_id=order_id, new_time=new_time, field=field, value=value
+            )
+        return schema(tool="handoff", target="clarify")  # action intent with no concrete tool
+    if not _kb_done(call):  # support: retrieve first
+        return schema(tool="search_kb", query=cur)
+    text = reply if reply is not None else f"(mock grounded answer) {cur}".strip()
+    # Empty retrieval → nothing to ground on, so the model declines (grounded=false), as the old
+    # support node did before ever calling the LLM.
+    return schema(tool="answer", reply=text, grounded=grounded and not _kb_empty(call))
 
 
 def _last_user(call: MockCall) -> str:
@@ -158,6 +202,35 @@ def _last_user(call: MockCall) -> str:
         if msg.get("role") == "user":
             return msg.get("content", "")
     return ""
+
+
+def _current_message(call: MockCall) -> str:
+    """The turn's current message — the agent prepends recent history as 'Current message: <x>'."""
+
+    for msg in call.messages:
+        if msg.get("role") == "user":
+            content = msg.get("content", "")
+            marker = "Current message: "
+            return content.split(marker, 1)[1] if marker in content else content
+    return ""
+
+
+def _kb_done(call: MockCall) -> bool:
+    """True once a search_kb observation has been fed back into the working context."""
+
+    return any(
+        msg.get("role") == "user" and str(msg.get("content", "")).startswith("KB snippets:")
+        for msg in call.messages
+    )
+
+
+def _kb_empty(call: MockCall) -> bool:
+    """True when search_kb returned nothing — the observation is the literal 'none'."""
+
+    return any(
+        msg.get("role") == "user" and str(msg.get("content", "")) == "KB snippets:\nnone"
+        for msg in call.messages
+    )
 
 
 def _guess_lang(text: str) -> str:

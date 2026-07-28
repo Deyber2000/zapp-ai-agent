@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ...guardrails.baseline import mask_pii
 from ...guardrails.registry import GuardrailContext, governing_action
 from ..deps import Deps
 from ..state import TurnState
@@ -17,6 +18,12 @@ def guardrail_in(state: TurnState, deps: Deps) -> TurnState:
     )
     decisions = deps.guardrails.run("input", ctx)
     state.guardrails_in = decisions
+
+    # A `redact` decision (PII in input) is APPLIED, not just recorded: mask the spans so no raw
+    # personal data is retained in the contract's final_normalized_text (003, FR-008). Processing
+    # continues (unlike refuse/escalate); assemble consumes `redacted_input`.
+    if any(d.action == "redact" for d in decisions):
+        state.redacted_input = mask_pii(state.user_text)
 
     # Most severe action governs (003): refuse/escalate block processing; the safe decline is
     # finalised in `assemble` once the active language is known. Escalations also flag for review.

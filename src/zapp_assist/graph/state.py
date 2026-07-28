@@ -66,6 +66,9 @@ class TurnState:
     # target language when the user explicitly asks to switch ("reply in English"); set by
     # detect_language after it flips active_lang, so smalltalk can confirm the switch.
     lang_switch_to: str | None = None
+    # input text with PII spans masked, set by guardrail_in when an input `redact` decision fires;
+    # assemble uses it (never the raw text) for the retained final_normalized_text (003, FR-008).
+    redacted_input: str | None = None
     needs_review: bool = False
     needs_review_override: bool = False
     grounding_confidence: float | None = None

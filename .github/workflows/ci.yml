@@ -1,0 +1,37 @@
+name: CI
+
+# Keyless gate: every check runs offline (no API key). Tests blank any key via an autouse fixture,
+# and ingestion/eval are served from committed caches — so CI never needs a secret.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies (no key needed)
+        run: uv sync --extra dev
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Types
+        run: uv run mypy src evals
+
+      - name: Tests
+        run: uv run pytest
+
+      - name: Knowledge-base validation
+        run: uv run zapp-ingest validate
+
+      - name: Evaluation gate (non-zero on any metric failure)
+        run: uv run zapp-eval

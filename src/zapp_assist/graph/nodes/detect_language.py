@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from ...lang.detector import LanguageResult, apply_switch_policy, fuse
+from ...lang.detector import (
+    LanguageResult,
+    apply_switch_policy,
+    detect_switch_request,
+    fuse,
+)
 from ..deps import Deps
 from ..state import TurnState
 from ._util import add_span, now
@@ -69,6 +74,34 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
     fused = fuse(
         deterministic, llm_lang, llm_conf, cfg.languages.supported, cfg.languages.fallback
     )
+
+    # An explicit request to switch language ("reply in English") is honored at once, over the
+    # sustained-switch accumulator: a direct instruction shouldn't need repeating. It flips the
+    # active language (and resets any in-progress switch), while `detected_lang` still reports the
+    # language this message was written in. smalltalk then confirms the switch in the new language.
+    requested = (
+        detect_switch_request(state.user_text, cfg.languages.supported)
+        if cfg.languages.honor_explicit_switch
+        else None
+    )
+    if requested is not None:
+        state.session.active_lang = requested
+        state.session.pending_switch_lang = None
+        state.session.pending_switch_count = 0
+        state.lang_switch_to = requested
+        fused.active_lang = requested
+        state.language = fused
+        add_span(
+            state.trace,
+            "detect_language",
+            start,
+            attrs={
+                "detected": fused.detected_lang,
+                "active": requested,
+                "switch_requested": requested,
+            },
+        )
+        return state
 
     # Language lock/persist/switch policy (002). The deterministic detection drives the choice
     # (Principle X); an LLM disagreement only lowers `lang_confidence` via fuse(). A locked language

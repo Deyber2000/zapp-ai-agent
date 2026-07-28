@@ -10,12 +10,18 @@ from __future__ import annotations
 
 from ..deps import Deps
 from ..state import TurnState
-from ._util import SMALLTALK_TEMPLATES, add_span, now, tmpl
+from ._util import LANGUAGE_SWITCH_TEMPLATES, SMALLTALK_TEMPLATES, add_span, now, tmpl
 
 
 def smalltalk(state: TurnState, deps: Deps) -> TurnState:
     start = now()
     active = state.language.active_lang if state.language else deps.config.languages.fallback
-    state.draft_reply = tmpl(SMALLTALK_TEMPLATES, active)
-    add_span(state.trace, "smalltalk", start, attrs={"intent": "smalltalk"})
+    # An explicit language-switch request (active_lang already flipped by detect_language) gets a
+    # confirmation in the new language; any other courtesy/meta turn gets the warm redirect.
+    templates = LANGUAGE_SWITCH_TEMPLATES if state.lang_switch_to else SMALLTALK_TEMPLATES
+    state.draft_reply = tmpl(templates, active)
+    add_span(
+        state.trace, "smalltalk", start,
+        attrs={"intent": "smalltalk", "lang_switch": state.lang_switch_to},
+    )
     return state

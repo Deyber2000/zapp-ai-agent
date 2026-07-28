@@ -50,6 +50,9 @@ thresholds:
 languages:
   supported: [es, en, pt]
   fallback: en
+  # Flip the active language at once on an explicit request ("reply in English"), rather than
+  # waiting for the sustained-switch count. Set false to require the deterministic count only.
+  honor_explicit_switch: true
 
 # Pricing per 1,000,000 tokens (USD). `temperature_capable` marks the ONLY models that accept a
 # `temperature` parameter — current Claude frontier models (sonnet-5 / opus-5) reject it (HTTP 400),

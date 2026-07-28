@@ -12,7 +12,7 @@ import pytest
 from tests.support.mock_llm import MockCall, MockLLMClient, scripted_llm
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
-from zapp_assist.graph.nodes._util import LANG_MISMATCH_TEMPLATES
+from zapp_assist.graph.nodes._util import LANG_MISMATCH_TEMPLATES, LANGUAGE_SWITCH_TEMPLATES
 from zapp_assist.lang.detector import LinguaDetector
 
 EN_Q = "How late can I reschedule a delivery?"
@@ -107,12 +107,14 @@ def test_correct_in_language_reply_passes_verification(
 PT1 = "Olá, preciso reagendar a minha entrega para amanhã de manhã, por favor."
 PT2 = "Obrigado pela ajuda com o meu pedido de hoje."
 PT3 = "Preciso de ajuda com a minha entrega de amanhã de manhã."
-EN1 = "I would like to continue this conversation in English now please."
+# Plain English sentences (no language name), so they exercise the SUSTAINED-count drift policy and
+# not the explicit-switch shortcut ("...in English..." would flip immediately — covered separately).
+EN1 = "I would like to reschedule my delivery for tomorrow morning please."
 EN2 = "Can you help me reschedule my delivery for tomorrow afternoon?"
 EN3 = "Thanks a lot for your help today, I really appreciate it."
 # Short but genuine switches: confidently English, >= 2 words, yet < 12 chars each — so the old
 # char>=12 floor blocked them on length while the word>=2 floor lets a sustained pair switch.
-EN_SHORT_A = "in english"  # en@0.95, 2 words, 10 chars
+EN_SHORT_A = "help me now"  # en@0.91, 3 words, 11 chars
 EN_SHORT_B = "i need help"  # en@0.93, 3 words, 11 chars
 
 
@@ -172,6 +174,49 @@ def test_sustained_switch_on_short_genuine_turns() -> None:
     r3 = agent.run_turn("sw-short", EN_SHORT_B)  # 2nd short EN → sustained switch
     assert [r1.active_lang, r2.active_lang, r3.active_lang] == ["pt", "pt", "en"]
     assert _lang_of(r3.reply) == "en"  # the reply follows the switch
+
+
+def _switch_smalltalk_llm() -> MockLLMClient:
+    """LangSignal mirrors detection; every turn routes to smalltalk (greeting / meta / switch)."""
+
+    def responder(call: MockCall):  # type: ignore[no-untyped-def]
+        if call.schema is None:
+            return None
+        name = call.schema.__name__
+        if name == "LangSignal":
+            lang, conf = _DET.language_of(_last_user(call))
+            return call.schema(lang=lang, confidence=conf)
+        if name == "IntentSignal":
+            return call.schema(intent="smalltalk", confidence=0.95)
+        return None
+
+    return MockLLMClient(responder=responder)
+
+
+def test_explicit_switch_request_is_honored_and_confirmed_in_the_new_language() -> None:
+    # A Spanish-locked session gets "please continue in English": active flips at once (not after a
+    # sustained count) and the confirmation is in the NEW language — so the reply shows it listened.
+    agent = _agent(_switch_smalltalk_llm())
+    r1 = agent.run_turn("sw-req", "Hola, buenas tardes, ¿me puedes ayudar?")  # locks es
+    r2 = agent.run_turn("sw-req", "please continue in English from now on")  # explicit → en
+
+    assert r1.active_lang == "es"
+    assert r2.active_lang == "en"
+    assert r2.reply == LANGUAGE_SWITCH_TEMPLATES["en"]  # confirmed in English, not a Spanish ack
+    assert _lang_of(r2.reply) == "en"
+
+
+def test_explicit_switch_carries_the_new_language_into_the_answer() -> None:
+    # "en inglés ...: ¿hasta cuándo puedo reprogramar?" both switches AND asks — the switch is a
+    # language-layer concern, so the support answer comes back in the new language, English.
+    llm = _mm_llm(lang="es", grounded_reply=EN_REPLY, citations=["delivery_reschedule_en"])
+    result = _agent(llm).run_turn(
+        "sw-ask", "en inglés por favor, ¿hasta cuándo puedo reprogramar mi entrega?"
+    )
+    assert result.active_lang == "en"  # detected es, but the explicit request flips it
+    assert result.detected_lang == "es"  # honest about the message's own language
+    assert result.reply == EN_REPLY
+    assert _lang_of(result.reply) == "en"
 
 
 def test_one_off_foreign_phrase_does_not_switch() -> None:

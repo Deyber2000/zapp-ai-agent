@@ -29,6 +29,13 @@ GUARDRAIL_DECLINE_TEMPLATES = {
     "en": "I can only help with Zapp orders, deliveries, and account questions.",
     "pt": "Só posso ajudar com pedidos, entregas e perguntas sobre sua conta Zapp.",
 }
+# Confirmation for an explicit language-switch request — in the NEW active language, so the reply
+# itself shows the switch took effect (rather than a generic acknowledgement in the old language).
+LANGUAGE_SWITCH_TEMPLATES = {
+    "es": "¡Claro! Continuaré en español. ¿En qué puedo ayudarte?",
+    "en": "Sure — I'll continue in English. How can I help you?",
+    "pt": "Claro! Vou continuar em português. Como posso ajudar?",
+}
 # Courtesy / greetings / meta — acknowledged warmly and redirected (NOT refused as out-of-scope).
 SMALLTALK_TEMPLATES = {
     "es": "¡Con gusto! Estoy aquí para ayudarte con tus pedidos, entregas y cuenta de Zapp. "

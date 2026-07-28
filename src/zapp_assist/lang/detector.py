@@ -7,6 +7,8 @@ result wins (deterministic safety). Full language policy is deepened in spec `00
 
 from __future__ import annotations
 
+import re
+from collections.abc import Sequence
 from typing import Protocol, runtime_checkable
 
 from lingua import Language, LanguageDetectorBuilder
@@ -117,6 +119,47 @@ class LinguaDetector:
         if iso not in self._supported and top.value >= min_confidence:
             return iso, float(top.value)
         return None
+
+
+# Language names (accented and bare) mapped to their ISO code, for explicit switch requests.
+_SWITCH_LANG_NAMES = {
+    "english": "en", "inglés": "en", "ingles": "en", "inglês": "en",
+    "spanish": "es", "español": "es", "espanol": "es", "espanhol": "es", "castellano": "es",
+    "portuguese": "pt", "portugués": "pt", "portugues": "pt", "português": "pt",
+}
+_LANG_ALT = "|".join(sorted((re.escape(n) for n in _SWITCH_LANG_NAMES), key=len, reverse=True))
+# A preposition immediately before a language name: "in English", "en inglés", "em português".
+_PREP_SWITCH = re.compile(
+    rf"\b(?:in|into|en|al|em|para)\s+(?:o\s+|a\s+)?(?P<lang>{_LANG_ALT})\b", re.IGNORECASE
+)
+# An explicit switch verb in the clause with a language name: "switch to English", "cambia a
+# inglés", "prefiero español", "muda para português".
+_VERB_SWITCH = re.compile(
+    rf"\b(?:switch|change|cambia|cambiar|c[aá]mbiate|muda|mudar|troca|trocar"
+    rf"|prefer|prefiero|prefiro|prefieres)\b[^.?!\n]*?\b(?P<lang>{_LANG_ALT})\b",
+    re.IGNORECASE,
+)
+
+
+def detect_switch_request(text: str, supported: Sequence[str]) -> str | None:
+    """The ISO code of an explicitly requested language switch, or None (deterministic, offline).
+
+    Recognises a direct request to change the reply language ("reply in English", "cambia a inglés",
+    "fala em português") in any supported tongue. Keyed on a preposition- or switch-verb-adjacent
+    language name, so a passing mention ("a Spanish order") does not trigger a switch. Honored over
+    the sustained-switch accumulator (002): a direct instruction shouldn't need to be repeated.
+    """
+
+    body = text or ""
+    if not body:
+        return None
+    for pattern in (_PREP_SWITCH, _VERB_SWITCH):
+        match = pattern.search(body)
+        if match:
+            iso = _SWITCH_LANG_NAMES.get(match.group("lang").lower())
+            if iso and iso in supported:
+                return iso
+    return None
 
 
 def apply_switch_policy(

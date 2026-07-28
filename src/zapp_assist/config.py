@@ -37,6 +37,9 @@ class ModelsConfig(BaseModel):
 class LanguagesConfig(BaseModel):
     supported: list[str]
     fallback: str
+    # Honor an explicit request to switch language ("reply in English") immediately, over the
+    # sustained-switch accumulator (002) — a direct instruction shouldn't need to be repeated.
+    honor_explicit_switch: bool = True
 
 
 class Thresholds(BaseModel):

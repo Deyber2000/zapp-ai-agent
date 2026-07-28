@@ -109,11 +109,49 @@ def render_markdown(report: EvalReport) -> str:
     return "\n".join(lines)
 
 
+# Live-tier metrics (LLM-as-judge + deepeval) exist only in a keyed run. A keyless run must not
+# silently drop them from the committed report — a reviewer running `zapp-eval` per the README would
+# otherwise wipe the very numbers the brief asks for, and the drift guard can't catch it (it
+# excludes them as non-reproducible). Carry a prior keyed run's rows forward, labelled.
+_LIVE_TIER_METRICS = ("llm_judge_quality", "rag_faithfulness", "rag_contextual_relevancy")
+_CARRIED_LABEL = "carried from a prior keyed run"
+
+
+def _carry_forward_live_tier(report: EvalReport, existing_json: Path) -> None:
+    """Preserve prior live-tier metrics when this (keyless) run lacks them; mutates `report`.
+
+    Carried rows are labelled and do NOT affect `overall_passed` (already computed) — stale live
+    numbers must not gate a fresh keyless run. Idempotent: re-runs don't duplicate the label.
+    """
+
+    present = {m.name for m in report.metrics}
+    if any(name in present for name in _LIVE_TIER_METRICS) or not existing_json.exists():
+        return
+    try:
+        prior = EvalReport.model_validate_json(existing_json.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return
+    carried = 0
+    for m in prior.metrics:
+        if m.name in _LIVE_TIER_METRICS and m.name not in present:
+            if not m.detail:
+                detail: str | None = _CARRIED_LABEL
+            elif _CARRIED_LABEL in m.detail:
+                detail = m.detail
+            else:
+                detail = f"{m.detail}; {_CARRIED_LABEL}"
+            report.metrics.append(m.model_copy(update={"detail": detail}))
+            carried += 1
+    if carried:
+        report.generated_note += f" (+{carried} live-tier metric(s) {_CARRIED_LABEL})"
+
+
 def write_report(report: EvalReport, out_dir: Path | str | None = None) -> tuple[Path, Path]:
     directory = Path(out_dir) if out_dir else _EVALS_DIR
     directory.mkdir(parents=True, exist_ok=True)
     json_path = directory / "report.json"
     md_path = directory / "report.md"
+    _carry_forward_live_tier(report, json_path)  # keyless run keeps prior keyed live metrics
     json_path.write_text(report.model_dump_json(indent=2) + "\n", encoding="utf-8")
     md_path.write_text(render_markdown(report), encoding="utf-8")
     return json_path, md_path

@@ -2,7 +2,7 @@
   {
     "id": "onboarding-mx",
     "capability": "onboarding",
-    "turns": ["Hi, I'm Ana Torres and my phone is 55 1234 5678."],
+    "turns": ["Hi, I'm Ana Torres and my phone is 55 1234 5678, and I'm in Mexico."],
     "script": {
       "lang": "en",
       "intent": "onboarding",

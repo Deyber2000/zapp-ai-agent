@@ -16,7 +16,7 @@ from ...lang.detector import (
 )
 from ..deps import Deps
 from ..state import TurnState
-from ._util import add_span, now
+from ._util import UNSUPPORTED_LANG_TEMPLATES, add_span, now, tmpl
 
 _LANG_SYSTEM = (
     "You identify the language of the user's message. Respond with the ISO 639-1 code "
@@ -42,11 +42,14 @@ def detect_language(state: TurnState, deps: Deps) -> TurnState:
     if foreign is not None:
         iso, conf = foreign
         state.needs_review_override = True
+        state.unsupported_lang = True
         state.session.pending_switch_lang = None
         state.session.pending_switch_count = 0
         state.language = LanguageResult(
             detected_lang=iso, active_lang=cfg.languages.fallback, lang_confidence=round(conf, 4)
         )
+        # A fixed reply in the fallback language, so the router skips the agent (no action flow).
+        state.draft_reply = tmpl(UNSUPPORTED_LANG_TEMPLATES, cfg.languages.fallback)
         add_span(
             state.trace,
             "detect_language",

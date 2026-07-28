@@ -45,6 +45,16 @@ SMALLTALK_TEMPLATES = {
     "pt": "Com prazer! Estou aqui para ajudar com seus pedidos, entregas e conta Zapp. "
     "Em que mais posso ajudar?",
 }
+# Shown when the message is confidently in a language we don't support (e.g. French/German): reply
+# in the fallback language, naming the three we handle, and never route into the action flow.
+UNSUPPORTED_LANG_TEMPLATES = {
+    "es": "Solo puedo ayudarte en español, inglés o portugués. "
+    "¿Podrías reformular tu mensaje en uno de esos idiomas?",
+    "en": "I can only help in Spanish, English, or Portuguese. "
+    "Could you rephrase your message in one of those?",
+    "pt": "Só posso ajudar em espanhol, inglês ou português. "
+    "Você poderia reescrever sua mensagem em um desses idiomas?",
+}
 # Shown instead of re-emitting a reply we just sent (e.g. re-running a completed onboarding). Kept
 # neutral so it reads sensibly after any repeated reply — a confirmation as well as a refusal.
 REPETITION_TEMPLATES = {

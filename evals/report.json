@@ -48,7 +48,7 @@
     },
     {
       "name": "latency_p95_ms",
-      "score": 6.042,
+      "score": 30.946,
       "threshold": 5000.0,
       "passed": true,
       "higher_is_better": false,
@@ -57,7 +57,7 @@
     },
     {
       "name": "cost_per_convo",
-      "score": 0.002357,
+      "score": 0.002229,
       "threshold": 0.05,
       "passed": true,
       "higher_is_better": false,
@@ -65,12 +65,21 @@
       "applicable": true
     },
     {
+      "name": "live_task_success",
+      "score": 0.9524,
+      "threshold": 0.9,
+      "passed": true,
+      "higher_is_better": true,
+      "detail": "task success over LIVE agent outputs (real tool selection); carried from a prior keyed run",
+      "applicable": true
+    },
+    {
       "name": "llm_judge_quality",
-      "score": 4.588,
+      "score": 4.595,
       "threshold": 3.5,
       "passed": true,
       "higher_is_better": true,
-      "detail": "LLM-as-judge over 20 live replies (out of 5); carried from a prior keyed run",
+      "detail": "LLM-as-judge over 21 live replies (out of 5); carried from a prior keyed run",
       "applicable": true
     },
     {
@@ -270,9 +279,9 @@
       "notes": null
     }
   ],
-  "latency_p50_ms": 3.006,
-  "latency_p95_ms": 6.042,
-  "cost_per_convo": 0.002357,
+  "latency_p50_ms": 5.28,
+  "latency_p95_ms": 30.946,
+  "cost_per_convo": 0.002229,
   "overall_passed": true,
-  "generated_note": "deterministic (scripted model + rule-based judge) (+3 live-tier metric(s) carried from a prior keyed run)"
+  "generated_note": "deterministic (scripted model + rule-based judge) (+4 live-tier metric(s) carried from a prior keyed run)"
 }

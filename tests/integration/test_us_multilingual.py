@@ -12,7 +12,11 @@ import pytest
 from tests.support.mock_llm import MockCall, MockLLMClient, agent_step, scripted_llm
 from zapp_assist.agent import Agent
 from zapp_assist.config import load_config
-from zapp_assist.graph.nodes._util import LANG_MISMATCH_TEMPLATES, LANGUAGE_SWITCH_TEMPLATES
+from zapp_assist.graph.nodes._util import (
+    LANG_MISMATCH_TEMPLATES,
+    LANGUAGE_SWITCH_TEMPLATES,
+    UNSUPPORTED_LANG_TEMPLATES,
+)
 from zapp_assist.lang.detector import LinguaDetector
 
 EN_Q = "How late can I reschedule a delivery?"
@@ -251,3 +255,14 @@ def test_low_confidence_input_uses_fallback_safely() -> None:
     assert result.active_lang == "en"
     assert result.reply
     assert _lang_of(result.reply) == "en"
+
+
+def test_unsupported_language_gets_a_fallback_and_skips_the_action_flow() -> None:
+    # French is confidently NOT es/en/pt → a fixed "I support ES/EN/PT" reply in the fallback
+    # language, needs_review, and the agent/action flow is never entered (was an order-number ask).
+    result = _agent(MockLLMClient()).run_turn(
+        "fr", "Bonjour, je voudrais annuler ma commande immédiatement"
+    )
+    assert result.detected_lang == "fr" and result.active_lang == "en"
+    assert result.needs_review is True
+    assert result.reply == UNSUPPORTED_LANG_TEMPLATES["en"]

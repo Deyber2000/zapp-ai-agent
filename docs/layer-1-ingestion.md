@@ -12,15 +12,15 @@ flowchart TB
     SRC[("kb/*.json<br/>42 authored docs<br/>14 topics x 3 languages")]
     CACHE[("enrichment_cache.json<br/>committed, content-addressed<br/>42 entries")]
 
-    SRC --> LOAD["load + schema-validate<br/>KnowledgeDocument"]
+    SRC --> LOAD["<b>load</b> — parse kb/*.json<br/>→ KnowledgeDocument (Pydantic model)"]
 
-    LOAD --> VAL["<b>1. validate</b> — pure, no I/O<br/>· id unique and non-empty<br/>· required fields present<br/>· lang in supported set<br/>· warn if text over 1200 chars<br/>· cross-language coverage per category+topic"]
+    LOAD --> VAL["<b>1 · validate_documents</b> — ingestion/validate.py, pure, no I/O<br/>· id unique and non-empty<br/>· required fields present<br/>· lang in supported set<br/>· warn if text over 1200 chars<br/>· cross-language coverage per category+topic"]
 
     VAL --> GATE{"any<br/>error?"}
     GATE -->|yes| FAIL["FAIL CLOSED<br/>nothing written, exit code 1<br/>a broken corpus never reaches the index"]
-    GATE -->|no| CHUNK["<b>2. chunk</b> — deterministic<br/>paragraph then sentence packing<br/>max 900 chars, 150 overlap<br/>resumes on a word boundary"]
+    GATE -->|no| CHUNK["<b>2 · chunk_text</b> — ingestion/chunk.py, deterministic<br/>paragraph then sentence packing<br/>max 900 chars, 150 overlap<br/>resumes on a word boundary"]
 
-    CHUNK --> HASH["<b>3. enrich</b><br/>content_hash = sha256 of lang + title + text"]
+    CHUNK --> HASH["<b>3 · enrich</b> — ingestion/pipeline.py<br/>content_hash = sha256 of lang + title + text"]
 
     HASH --> Q1{"cache entry<br/>with matching hash?"}
     Q1 -->|yes| ST1["status <b>cache</b><br/>reuse — even under --refresh<br/>a curated entry is never re-billed"]
@@ -35,7 +35,7 @@ flowchart TB
     ST3 --> WRITE
     ST4 --> WRITE
 
-    WRITE["<b>4. build</b><br/>write doc with questions in canonical field order<br/>save the cache if dirty"] --> OUT[("retrieval-ready KB<br/>consumed by Layer 2")]
+    WRITE["<b>4 · build_kb</b> — ingestion/pipeline.py<br/>write doc with questions in canonical field order<br/>save the cache if dirty"] --> OUT[("retrieval-ready KB<br/>consumed by Layer 2")]
 
     CACHE -.->|lookup| Q1
     ST2 -.->|put| CACHE

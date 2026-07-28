@@ -56,7 +56,7 @@ lexicon. In each case an LLM opinion is *also* collected, but only as a cross-ch
 **2. Every path ends in a valid contract.**
 `TurnResult` is a Pydantic model with `extra="forbid"`
 ([contracts.py:53](../src/zapp_assist/contracts.py#L53)). `assemble` is the only exit and it runs even
-when the turn is degraded ([graph/build.py:115](../src/zapp_assist/graph/build.py#L115)); it wraps
+when the turn is degraded ([graph/build.py:122](../src/zapp_assist/graph/build.py#L122)); it wraps
 itself in a try/except whose handler builds `safe_fallback(...)`, which is constructed from clamped,
 regex-checked primitives and therefore cannot fail validation
 ([contracts.py:68-105](../src/zapp_assist/contracts.py#L68-L105)). There is no code path that returns a
@@ -117,6 +117,52 @@ flowchart LR
     class X gap;
 ```
 
+### The components
+
+`Agent.create(...)` wires the whole system once and hands back an `Agent`; every later `run_turn` reuses
+these parts. There are three groups: the **injected dependencies** (`Deps`, read by every node), the
+**session store** (multi-turn memory), and the **graph** of eleven pure nodes. Each box below is a real
+module or class — this is the map for "what components do we have, and what does each one do".
+
+```mermaid
+flowchart TB
+    CREATE["<b>Agent.create(config, llm?, store?, …)</b> → Agent<br/>wires the parts once · then agent.run_turn(session_id, text) per turn"]
+    CREATE --> DEPS
+    CREATE --> STORE
+    CREATE --> GRAPH
+
+    subgraph DEPS["<b>Deps</b> — injected once, read by every node · graph/deps.py"]
+        direction TB
+        LLM["<b>llm : LLMClient</b><br/>one provider-agnostic call site per node<br/>impl: OpenAIAdapter · AnthropicAdapter · MockLLMClient (tests)"]
+        RAG["<b>rag : Retriever</b><br/>grounds support answers from the KB<br/>impl: AdvancedRetriever → HybridRetriever(BM25Store + DenseRetriever)"]
+        GRD["<b>guardrails : GuardrailRegistry</b><br/>input/output safety — regex rules + optional LLM semantic layer"]
+        TOOLS["<b>tools : ToolRegistry</b><br/>normalize_contact + MockBackend order/account actions"]
+        DET["<b>detector : LanguageDetector</b><br/>deterministic language ID · impl: LinguaDetector (lingua)"]
+        CFG["<b>config : AppConfig</b><br/>config.yaml — models, thresholds, languages, retrieval, guardrail policy"]
+    end
+
+    STORE["<b>store : SessionStore</b><br/>multi-turn memory: pending action · onboarding slots · history · lang lock<br/>impl: InMemorySessionStore · FileSessionStore (.zapp_sessions/)"]
+
+    subgraph GRAPH["<b>build_graph(deps)</b> : LangGraph StateGraph — the ONLY orchestration-aware module · graph/build.py"]
+        direction TB
+        G1["<b>input</b> — guardrail_in → detect_language"]
+        G2["<b>understand</b> — agent (tool-calling ReAct loop)<br/>specialists it defers to: onboarding · smalltalk · out_of_scope · action_execute"]
+        G3["<b>verify + emit</b> — verify_reply_language → verify_confidence → guardrail_out → assemble"]
+        G1 --> G2 --> G3
+    end
+
+    G2 -.->|reasons with| LLM
+    G2 -.->|search_kb| RAG
+    G2 -.->|proposes / reads| TOOLS
+
+    classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
+    classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;
+    class LLM,RAG,G2 llm;
+    class GRD,TOOLS,DET,CFG,STORE,G1,G3 det;
+```
+
+The turn graph below shows how these components run in sequence for one turn.
+
 ### The turn graph
 
 ```mermaid
@@ -124,20 +170,21 @@ flowchart TD
     U(["user text"]) --> GI["guardrail_in<br/>4 regex rules"]
     GI --> DL["detect_language<br/>lingua + LLM cross-check"]
     DL -->|blocked| AS
-    DL --> RI["route_intent<br/>LLM classifier"]
+    DL -->|pending confirmation| AE["action_execute<br/>regex yes/no · the only mutation path"]
+    DL -->|onboarding slot-fill in progress| OB["onboarding<br/>slot-fill + fuse"]
+    DL -->|else| AG
 
-    RI -->|support| SR["support_rag<br/>retrieve then answer"]
-    RI -->|onboarding| OB["onboarding<br/>slot-fill + fuse"]
-    RI -->|action| AP["action_plan<br/>propose, never execute"]
-    RI -->|pending confirmation| AE["action_execute<br/>regex yes/no"]
-    RI -->|out_of_scope| OS["out_of_scope<br/>safe decline"]
-    RI -->|clarify or degraded| VL
+    AG["agent<br/>bounded tool-calling ReAct loop (≤4 steps):<br/>reason over THIS message → choose ONE tool"]
+    AG -->|"search_kb — retrieve, feed snippets back, then answer"| AG
+    AG -->|handoff onboarding| OB
+    AG -->|handoff smalltalk| SM["smalltalk<br/>canned redirect"]
+    AG -->|handoff out_of_scope| OS["out_of_scope<br/>safe decline"]
+    AG -->|"answer / lookup / track / propose action / clarify"| VL
 
-    SR --> VL["verify_reply_language<br/>lingua on the reply"]
-    OB --> VL
-    AP --> VL
-    AE --> VL
+    OB --> VL["verify_reply_language<br/>lingua on the reply"]
+    SM --> VL
     OS --> VL
+    AE --> VL
 
     VL --> VC["verify_confidence<br/>combine signals vs threshold"]
     VC --> GO["guardrail_out<br/>3 regex rules + redaction"]
@@ -146,13 +193,23 @@ flowchart TD
 
     classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
-    class GI,AE,OS,GO,AS,VC det;
-    class DL,RI,SR,OB,AP llm;
+    class GI,AE,SM,OS,GO,AS,VC det;
+    class DL,AG,OB llm;
     class VL llm;
 ```
 
-`verify_reply_language` is drawn blue because it *may* spend a call, but it is deterministic in the
-common case: the check itself is `lingua`, and a model is only consulted on an actual mismatch.
+The single blue `agent` node replaces the old three-LLM understanding stage (a routing classifier, a
+retrieval-answer node, and an action planner). It is a bounded ReAct loop: the model reasons over the
+current message (recent history is context, never an action source) and picks exactly one tool per
+step — `search_kb` (retrieval runs in-loop and feeds snippets back before the model answers; empty
+retrieval → the model declines with `grounded=false`), the read-only `lookup_order`/`track_order`, a
+state-changing tool that is **proposed and never executed here**, a final `answer`, or a `handoff`.
+Two deterministic seams branch off `detect_language` *before* the agent: a pending action awaiting
+confirmation goes straight to `action_execute` (the single human-in-the-loop gate, and the only path
+to a backend mutation), and an onboarding slot-fill already in progress continues straight to
+`onboarding`. `verify_reply_language` is drawn blue because it *may* spend a call, but it is
+deterministic in the common case: the check itself is `lingua`, and a model is only consulted on an
+actual mismatch.
 
 Worked example — `"¿hasta cuándo puedo reprogramar mi entrega?"` on a fresh session:
 
@@ -160,16 +217,17 @@ Worked example — `"¿hasta cuándo puedo reprogramar mi entrega?"` on a fresh 
 |---|---|---|---|
 | 1 | `guardrail_in` | 4 regex rules over the raw input; none fire | `guardrails.input = []` |
 | 2 | `detect_language` | `is_foreign` guard says not-foreign → `lingua` says `es` (0.94) → LLM second opinion says `es` → `fuse` applies the agreement boost → first confident detection **locks** `active_lang="es"` | `lang_confidence ≈ 0.96` |
-| 3 | `route_intent` | LLM classifies `support` (0.95) | `intent_confidence = 0.95` |
-| 4 | `support_rag` | Hybrid retrieval: BM25 over folded/stopworded tokens ∪ dense cosine over doc+HyPE-question vectors, RRF-fused → `delivery_reschedule_es` at rank 1. Answer generated **strictly from the snippets**, with a `grounded` flag the model can set false | `grounding_confidence = 0.6 + 0.05·score` |
-| 5 | `verify_reply_language` | `lingua` on the *reply*; `es == active_lang` → pass, no LLM spent | `reply_match=true` on the span |
-| 6 | `verify_confidence` | mean of {language, intent, grounding} vs `review_confidence=0.6` | `confidence_score`, `needs_review` |
-| 7 | `guardrail_out` | 3 output rules (PII leak, ungrounded backstop, instruction disclosure); none fire | `guardrails.output = []` |
-| 8 | `assemble` | Builds and validates `TurnResult` | the contract |
+| 3 | `agent` | The tool-calling loop: step 1 chooses `search_kb`; hybrid retrieval (BM25 over folded/stopworded tokens ∪ dense cosine over doc+HyPE-question vectors, RRF-fused → `delivery_reschedule_es` at rank 1) runs in-loop and feeds the snippets back; step 2 chooses `answer`, generated **strictly from the snippets**, with a `grounded` flag the model can set false. One span, two LLM calls | `intent = support`, `grounding_confidence = 0.6 + 0.05·score` |
+| 4 | `verify_reply_language` | `lingua` on the *reply*; `es == active_lang` → pass, no LLM spent | `reply_match=true` on the span |
+| 5 | `verify_confidence` | mean of {language, intent, grounding} vs `review_confidence=0.6` | `confidence_score`, `needs_review` |
+| 6 | `guardrail_out` | 3 output rules (PII leak, ungrounded backstop, instruction disclosure); none fire | `guardrails.output = []` |
+| 7 | `assemble` | Builds and validates `TurnResult` | the contract |
 
-Three LLM calls, one embedding call (the KB was embedded once at construction), and a `Trace` with
-eight spans. The same question with no API key at all still answers: retrieval falls back to BM25 and
-only the generation step is lost — which is exactly the failure the decline path is designed for.
+Three LLM calls (one to detect language, two inside the agent loop — `search_kb` then `answer`), one
+embedding call (the KB was embedded once at construction), and a `Trace` with seven spans — the agent
+emits **one** span per turn even though its loop spent two calls. The same question with no API key at
+all still answers: retrieval falls back to BM25 and only the generation step is lost — which is
+exactly the failure the decline path is designed for.
 
 ---
 
@@ -225,43 +283,40 @@ Ordered by what would matter most in production, not by effort.
    untenable for a service. The cache pattern to fix it already exists one layer up. → [Layer 2](layer-2-retrieval.md#storage)
 2. **The full `Trace` has no export path.** A structured summary line is now emitted per turn, but
    the complete span tree is not returned or exported (OTel/Langfuse). → [Layer 5](layer-5-observability.md#gap-the-trace-summary-is-emitted-a-full-trace-export-path-is-not)
-3. **Sessions are not shared across replicas.** A file-backed store ships and is used by the CLI, but
-   a shared multi-replica backend (Redis) is not yet built. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
-
-*Recently closed (see git history):* input-side PII `redact` is now applied (Layer 4), one structured
-log line per turn is emitted (Layer 5), and a keyless CI workflow is committed (Layer 6). Those three
-layers' detailed gap sections predate the fixes and are pending a refresh.
-5. **Guardrail precision/recall rests on 4 unsafe cases.** The machinery is right, the sample is a
+3. **Sessions are not shared across replicas.** A file-backed store ships and is used by the CLI (so
+   `turn` persists across processes) and the `SessionStore` swap point is *exercised* — but a shared
+   multi-replica backend (Redis) is the remaining unproven step. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
+4. **Guardrail precision/recall rests on 4 unsafe cases.** The machinery is right, the sample is a
    seed. → [Layer 6](layer-6-evaluation.md#what-the-numbers-do-and-do-not-mean)
-6. **Retrieval is language-blind** across a parallel trilingual KB; language correctness is recovered
+5. **Retrieval is language-blind** across a parallel trilingual KB; language correctness is recovered
    at generation and verification rather than at retrieval. → [Layer 2](layer-2-retrieval.md#gap-retrieval-is-language-blind)
-7. **The chunker is not wired into the index** — a reported statistic only. No effect today (longest
+6. **The chunker is not wired into the index** — a reported statistic only. No effect today (longest
    doc: 339 chars); the 900/1200-char thresholds also disagree. → [Layer 1](layer-1-ingestion.md#gap-the-chunker-is-plumbed-but-not-indexed)
-8. **`retrieval.top_k` is honored on one of three retriever paths.** No behavioral difference today
+7. **`retrieval.top_k` is honored on one of three retriever paths.** No behavioral difference today
    because the value happens to match the hardcoded default. → [Layer 2](layer-2-retrieval.md#gap-retrievaltop_k-is-honored-on-one-path-of-three)
-9. **Two wasted LLM calls per turn on specific paths** — blocked turns and confirmation turns.
-   → [Layer 3](layer-3-orchestration.md#micro-inefficiencies-worth-naming)
-10. **Session storage has two backends** (in-memory + a file-backed store the CLI uses, so `turn`
-    persists across processes); the `SessionStore` swap point is *exercised* — a shared multi-replica
-    store (e.g. Redis) is the remaining unproven step. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
-11. **The live Anthropic path is structurally exercised but not tested end-to-end** (no key in CI).
-    The OpenAI adapter is currently the live path.
+8. **One wasted LLM call on the blocked-input path** — a refused turn still pays for the
+   `detect_language` second opinion. The old confirmation-turn waste is now gone: the pending-action
+   gate branches off `detect_language`, so a yes/no turn skips the agent entirely instead of running
+   an understanding call whose result is discarded. → [Layer 3](layer-3-orchestration.md#micro-inefficiencies-worth-naming)
+9. **The live Anthropic path is structurally exercised but not tested end-to-end** (no key in CI).
+   The OpenAI adapter is currently the live path.
 
-Items 1, 2, 4, and 9 are each under an hour. Item 3 is the only one that is genuinely architectural,
-and it has a template to copy.
+Most of these are an hour or less. The genuinely architectural ones — persisting the embeddings
+cache (#1) and a shared multi-replica session store (#3) — are larger, though even #1 has a template
+to copy one layer up.
 
 ---
 
 ## If this went to production
 
-**First week — close the stated-vs-built gaps.** Apply input-side redaction (#1). Emit one structured
-log line per turn and give `run_turn` a trace sink (#2). Commit the CI workflow (#4). Guard the two
-wasted LLM calls (#9). None of these change the architecture; they make the code match what the
-documentation already claims.
+**First week — close the stated-vs-built gaps.** Input-side redaction, one structured log line per
+turn, and a keyless CI workflow have shipped. What remains at this tier: give `run_turn` a trace sink
+(#2) and guard the remaining wasted LLM call on the blocked path (#8). None of these change the
+architecture; they make the code match what the documentation claims.
 
 **First month — make the scaling seams real.** Persist embeddings behind a content-addressed cache,
-reusing the ingestion pattern (#3). Implement `RedisSessionStore` against the existing protocol and
-run two replicas to prove the seam (#10). Add a Langfuse exporter behind the trace sink — the
+reusing the ingestion pattern (#1). Implement `RedisSessionStore` against the existing protocol and
+run two replicas to prove the seam (#3). Add a Langfuse exporter behind the trace sink — the
 deterministic gate stays as-is; the platform becomes the trends and drill-down layer, which is what
 it is actually good at.
 
@@ -285,7 +340,7 @@ tests.
 |---|---|---|
 | **Ingestion** | [ingestion/pipeline.py](../src/zapp_assist/ingestion/pipeline.py), [validate.py](../src/zapp_assist/ingestion/validate.py), [chunk.py](../src/zapp_assist/ingestion/chunk.py), [enrich.py](../src/zapp_assist/ingestion/enrich.py), [cli.py](../src/zapp_assist/ingestion/cli.py), [enrichment_cache.json](../src/zapp_assist/ingestion/enrichment_cache.json) | 540 |
 | **Retrieval/storage** | [rag/store.py](../src/zapp_assist/rag/store.py), [dense.py](../src/zapp_assist/rag/dense.py), [hybrid.py](../src/zapp_assist/rag/hybrid.py), [advanced.py](../src/zapp_assist/rag/advanced.py), [retriever.py](../src/zapp_assist/rag/retriever.py), [embedder.py](../src/zapp_assist/rag/embedder.py), [kb/](../src/zapp_assist/rag/kb/) (42 docs), [memory/session_store.py](../src/zapp_assist/memory/session_store.py) | 731 |
-| **Agent/orchestration** | [agent.py](../src/zapp_assist/agent.py), [contracts.py](../src/zapp_assist/contracts.py), [config.py](../src/zapp_assist/config.py), [graph/build.py](../src/zapp_assist/graph/build.py), [state.py](../src/zapp_assist/graph/state.py), [deps.py](../src/zapp_assist/graph/deps.py), [nodes/](../src/zapp_assist/graph/nodes/) (12 nodes), [llm/](../src/zapp_assist/llm/), [lang/detector.py](../src/zapp_assist/lang/detector.py), [tools/](../src/zapp_assist/tools/), [cli.py](../src/zapp_assist/cli.py) | 2902 |
+| **Agent/orchestration** | [agent.py](../src/zapp_assist/agent.py), [contracts.py](../src/zapp_assist/contracts.py), [config.py](../src/zapp_assist/config.py), [graph/build.py](../src/zapp_assist/graph/build.py), [state.py](../src/zapp_assist/graph/state.py), [deps.py](../src/zapp_assist/graph/deps.py), [nodes/](../src/zapp_assist/graph/nodes/) (11 nodes), [llm/](../src/zapp_assist/llm/), [lang/detector.py](../src/zapp_assist/lang/detector.py), [tools/](../src/zapp_assist/tools/), [cli.py](../src/zapp_assist/cli.py) | 2902 |
 | **Guardrails/security** | [guardrails/registry.py](../src/zapp_assist/guardrails/registry.py), [baseline.py](../src/zapp_assist/guardrails/baseline.py), [semantic.py](../src/zapp_assist/guardrails/semantic.py), [nodes/guardrail_in.py](../src/zapp_assist/graph/nodes/guardrail_in.py), [guardrail_out.py](../src/zapp_assist/graph/nodes/guardrail_out.py), [out_of_scope.py](../src/zapp_assist/graph/nodes/out_of_scope.py) | 526 |
 | **Observability** | [obs/trace.py](../src/zapp_assist/obs/trace.py) — the span helper itself lives in [nodes/_util.py](../src/zapp_assist/graph/nodes/_util.py) (counted above) | 89 |
 | **Evaluation** | [evals/cli.py](../evals/cli.py), [runner.py](../evals/runner.py), [models.py](../evals/models.py), [metrics.py](../evals/metrics.py), [judge.py](../evals/judge.py), [report.py](../evals/report.py), [scripted_llm.py](../evals/scripted_llm.py), [quality_tier.py](../evals/quality_tier.py), [dataset/](../evals/dataset/) (20 cases), [eval_config.yaml](../evals/eval_config.yaml) | 985 |

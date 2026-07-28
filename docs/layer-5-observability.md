@@ -12,12 +12,11 @@ flowchart TB
     subgraph turn["One turn"]
         N1["guardrail_in<br/>decisions · blocked · semantic_degraded"]
         N2["detect_language<br/>detected · active · confidence · switched · pending"]
-        N3["route_intent<br/>intent · confidence"]
-        N4["support_rag<br/>grounded · hits · top_score"]
-        N5["verify_reply_language<br/>reply_lang · reply_match · corrected"]
-        N6["verify_confidence<br/>score · needs_review"]
-        N7["guardrail_out<br/>decisions · sem_degraded"]
-        N8["assemble<br/>needs_review · fallback"]
+        N3["agent<br/>tool · grounded · pending · target"]
+        N4["verify_reply_language<br/>reply_lang · reply_match · corrected"]
+        N5["verify_confidence<br/>score · needs_review"]
+        N6["guardrail_out<br/>decisions · sem_degraded"]
+        N7["assemble<br/>needs_review · fallback"]
     end
 
     N1 --> TR
@@ -27,7 +26,6 @@ flowchart TB
     N5 --> TR
     N6 --> TR
     N7 --> TR
-    N8 --> TR
 
     ADP["LLM adapter<br/>usage in / out / cache-read tokens"] -->|record_llm| TR
     ADP --> COST["compute_cost from the config pricing table<br/>attributed to the model that actually ran"]
@@ -48,9 +46,9 @@ flowchart TB
     classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
     classDef gap fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-dasharray: 5 4;
-    class N1,N2,N3,N4,N5,N6,N7,N8,TR,COST,C1,EV det;
+    class N1,N2,N3,N4,N5,N6,N7,TR,COST,C1,EV,C2,RT det;
     class ADP,RET llm;
-    class C2,C3,RT gap;
+    class C3 gap;
 ```
 
 **This is the one layer where the diagram is more honest than the code.** Capture is complete and
@@ -70,18 +68,23 @@ chosen to answer the questions you actually ask during an incident:
 |---|---|---|
 | `guardrail_in` | `decisions`, `blocked`, `semantic_degraded` | why was this refused; was safety checking complete |
 | `detect_language` | `detected`, `active`, `confidence`, `switched`, `pending` | why did it answer in that language |
-| `route_intent` | `intent`, `confidence` | why did it take that branch |
-| `support_rag` | `grounded`, `hits`, `top_score` | did it have grounding, and how strong |
+| `agent` | `tool`, `grounded`, `pending`, `target` | which tool the loop chose, and whether it grounded, proposed an action, or handed off |
 | `verify_reply_language` | `reply_lang`, `reply_match`, `corrected` | did the language guarantee hold |
 | `verify_confidence` | `score`, `needs_review` | why was this escalated |
 | `assemble` | `needs_review`, `fallback` | was this a real answer or a degradation |
+
+The `agent` row is one span per turn even though its bounded ReAct loop may spend **1–4 LLM calls**
+(a `search_kb` retrieval step and then an `answer`, for example). The individual model calls are still
+costed and counted — they report usage through `record_llm` as they happen — but the node emits a
+single span carrying the *terminal* decision, so the trace reads as one row per node rather than one
+row per internal step.
 
 Cost is computed from the config pricing table at the adapter boundary
 ([trace.py:55-61](../src/zapp_assist/obs/trace.py#L55-L61)), so it is attributed to the model that
 actually ran — including retrieval-side expansion calls, which report usage back through an `on_llm`
 callback so they land in the *turn's* budget rather than vanishing
 ([advanced.py:171-172](../src/zapp_assist/rag/advanced.py#L171-L172),
-[support_rag.py:63](../src/zapp_assist/graph/nodes/support_rag.py#L63)). That detail matters: retrieval
+[agent.py:223](../src/zapp_assist/graph/nodes/agent.py#L223)). That detail matters: retrieval
 enhancements are the easiest place for LLM spend to hide.
 
 ## Decision: signals ride in the trace, not the contract

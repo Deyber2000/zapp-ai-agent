@@ -12,7 +12,7 @@ uv run zapp-eval    # → evals/report.{json,md}; exit 0 all-pass, non-zero on a
 
 ```mermaid
 flowchart TB
-    DS[("dataset — 20 labelled cases<br/>8 support · 6 guardrail · 3 action<br/>2 multilingual · 1 onboarding")]
+    DS[("dataset — 21 labelled cases<br/>9 support · 5 guardrail · 3 action<br/>2 multilingual · 1 onboarding · 1 out_of_scope")]
     TH[("eval_config.yaml<br/>7 core thresholds + 3 quality-tier thresholds")]
 
     DS --> CORE
@@ -25,25 +25,29 @@ flowchart TB
         RUN --> RJ["RuleBasedJudge<br/>1-5 rubric from observable facts"]
     end
 
-    KEYQ{"API key present<br/>AND deepeval importable?"}
+    KEYQ{"live_tier_available?<br/>API key present"}
     DS --> KEYQ
     KEYQ -->|no| SKIP["tier skipped silently<br/>core remains the CI gate"]
     KEYQ -->|yes| LIVE
 
-    subgraph LIVE["Live quality tier — automatic, no --live flag"]
+    subgraph LIVE["Live tier — automatic when a key is present (no --live flag)"]
         REAL["re-run every case through the REAL agent<br/>real provider + configured retrieval"]
+        REAL --> LTS["<b>live_task_success</b><br/>observed outcome vs label over the REAL tool selection<br/>— catches routing/tool regressions the scripted core cannot"]
         REAL --> LJ["LLMJudge — 1-5 rubric over live replies"]
-        REAL --> DE["deepeval over the context actually retrieved<br/>faithfulness · contextual relevancy<br/>capped at 5 grounded cases"]
+        REAL --> DEQ{"deepeval<br/>importable?"}
+        DEQ -->|yes| DE["deepeval over the context actually retrieved<br/>faithfulness · contextual relevancy<br/>capped at 5 grounded cases"]
+        DEQ -->|no| DESK["RAG metrics skipped<br/>task success + judge still ran"]
     end
 
     RUN --> M
     RJ --> M
+    LTS -.-> M
     LJ -.-> M
     DE -.-> M
     SKIP --> M
     TH --> M
 
-    M["<b>metrics</b><br/>task_success overall + per capability<br/>language_fidelity · guardrail precision · guardrail recall<br/>judge_quality · latency_p95 · cost_per_convo<br/>+ llm_judge_quality · rag_faithfulness · rag_contextual_relevancy"]
+    M["<b>metrics</b><br/>task_success overall + per capability<br/>language_fidelity · guardrail precision · guardrail recall<br/>judge_quality · latency_p95 · cost_per_convo<br/>+ live_task_success · llm_judge_quality · rag_faithfulness · rag_contextual_relevancy"]
 
     M --> RPT[("report.json + report.md<br/>committed artifacts")]
     RPT --> EXIT{"every applicable<br/>metric passed?"}
@@ -60,8 +64,8 @@ flowchart TB
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
     classDef safe fill:#fee2e2,stroke:#dc2626,color:#450a0a;
     classDef gap fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-dasharray: 5 4;
-    class SCR,PIN,RUN,RJ,M,RPT,GUARD,SKIP,Z0,CI det;
-    class REAL,LJ,DE llm;
+    class SCR,PIN,RUN,RJ,M,RPT,GUARD,SKIP,Z0,CI,DEQ,DESK det;
+    class REAL,LTS,LJ,DE llm;
     class Z1 safe;
 ```
 

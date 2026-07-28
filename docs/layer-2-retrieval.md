@@ -10,7 +10,7 @@
 ```mermaid
 flowchart TB
     subgraph boot["Construction time — once per Agent, not per query"]
-        KB[("KB — 42 docs")] --> IDX["BM25Okapi index<br/>fold diacritics, lowercase<br/>strip ES/EN/PT stopwords"]
+        KB[("KB — 42 docs")] --> IDX["<b>BM25Store</b> (store.py) — BM25Okapi index<br/>fold diacritics, lowercase<br/>strip ES/EN/PT stopwords"]
         KB --> REP["representations<br/>42 doc bodies + 168 HyPE questions<br/>= 210 vectors, all pointing at a doc"]
         REP --> KEY{"embedding key<br/>available?"}
         KEY -->|yes| VEC["1 batched embedding call<br/>L2-normalized matrix<br/>NOT persisted — see gap 3"]
@@ -30,8 +30,8 @@ flowchart TB
     RF --> BASE
 
     subgraph hybrid["HybridRetriever — one search per variant"]
-        BASE["for each variant"] --> SP["BM25<br/>score >= grounding_min_score 1.0<br/>top 10 candidates"]
-        BASE --> DN["Dense<br/>cosine >= 0.30<br/>best-matching representation wins<br/>top 10 candidates"]
+        BASE["for each variant"] --> SP["<b>BM25Store</b> (store.py) — lexical<br/>score >= grounding_min_score 1.0<br/>top 10 candidates"]
+        BASE --> DN["<b>DenseRetriever</b> (dense.py) — embeddings<br/>cosine >= 0.30<br/>best-matching representation wins<br/>top 10 candidates"]
         SP --> RRF
         DN --> RRF
         DN -.->|"no dense hits — offline or no key"| DEG["degrade to lexical results"]

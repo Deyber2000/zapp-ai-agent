@@ -46,9 +46,9 @@ flowchart TB
     classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
     classDef gap fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-dasharray: 5 4;
-    class N1,N2,N3,N4,N5,N6,N7,TR,COST,C1,EV det;
+    class N1,N2,N3,N4,N5,N6,N7,TR,COST,C1,EV,C2,RT det;
     class ADP,RET llm;
-    class C2,C3,RT gap;
+    class C3 gap;
 ```
 
 **This is the one layer where the diagram is more honest than the code.** Capture is complete and

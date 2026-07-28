@@ -221,15 +221,16 @@ production path.
 
 Ordered by what would matter most in production, not by effort.
 
-1. **Input-side PII `redact` is declared but not applied.** Recorded correctly, never carried out;
-   raw input reaches `final_normalized_text`. Output-side redaction is complete.
-   → [Layer 4](layer-4-guardrails.md#gap-redact-at-the-input-stage-is-recorded-but-not-applied)
-2. **Nothing is emitted.** No logging anywhere; `run_turn` drops the trace it builds. The
-   instrumentation exists and has no exit. → [Layer 5](layer-5-observability.md#gap-nothing-is-emitted-and-the-trace-is-dropped)
-3. **Embeddings are recomputed at every process start** and never persisted — fine for a CLI,
+1. **Embeddings are recomputed at every process start** and never persisted — fine for a CLI,
    untenable for a service. The cache pattern to fix it already exists one layer up. → [Layer 2](layer-2-retrieval.md#storage)
-4. **No CI workflow is committed.** Every gate passes keyless; nothing enforces them.
-   → [Layer 6](layer-6-evaluation.md#gap-ci-ready-not-ci-wired)
+2. **The full `Trace` has no export path.** A structured summary line is now emitted per turn, but
+   the complete span tree is not returned or exported (OTel/Langfuse). → [Layer 5](layer-5-observability.md#gap-the-trace-summary-is-emitted-a-full-trace-export-path-is-not)
+3. **Sessions are not shared across replicas.** A file-backed store ships and is used by the CLI, but
+   a shared multi-replica backend (Redis) is not yet built. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
+
+*Recently closed (see git history):* input-side PII `redact` is now applied (Layer 4), one structured
+log line per turn is emitted (Layer 5), and a keyless CI workflow is committed (Layer 6). Those three
+layers' detailed gap sections predate the fixes and are pending a refresh.
 5. **Guardrail precision/recall rests on 4 unsafe cases.** The machinery is right, the sample is a
    seed. → [Layer 6](layer-6-evaluation.md#what-the-numbers-do-and-do-not-mean)
 6. **Retrieval is language-blind** across a parallel trilingual KB; language correctness is recovered
@@ -240,7 +241,9 @@ Ordered by what would matter most in production, not by effort.
    because the value happens to match the hardcoded default. → [Layer 2](layer-2-retrieval.md#gap-retrievaltop_k-is-honored-on-one-path-of-three)
 9. **Two wasted LLM calls per turn on specific paths** — blocked turns and confirmation turns.
    → [Layer 3](layer-3-orchestration.md#micro-inefficiencies-worth-naming)
-10. **Session storage is process-local**; the swap point is clean but unexercised. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
+10. **Session storage has two backends** (in-memory + a file-backed store the CLI uses, so `turn`
+    persists across processes); the `SessionStore` swap point is *exercised* — a shared multi-replica
+    store (e.g. Redis) is the remaining unproven step. → [Layer 3](layer-3-orchestration.md#storage-and-scaling-posture)
 11. **The live Anthropic path is structurally exercised but not tested end-to-end** (no key in CI).
     The OpenAI adapter is currently the live path.
 
@@ -287,12 +290,12 @@ tests.
 | **Observability** | [obs/trace.py](../src/zapp_assist/obs/trace.py) — the span helper itself lives in [nodes/_util.py](../src/zapp_assist/graph/nodes/_util.py) (counted above) | 89 |
 | **Evaluation** | [evals/cli.py](../evals/cli.py), [runner.py](../evals/runner.py), [models.py](../evals/models.py), [metrics.py](../evals/metrics.py), [judge.py](../evals/judge.py), [report.py](../evals/report.py), [scripted_llm.py](../evals/scripted_llm.py), [quality_tier.py](../evals/quality_tier.py), [dataset/](../evals/dataset/) (20 cases), [eval_config.yaml](../evals/eval_config.yaml) | 985 |
 | **Specs & governance** | [.specify/memory/constitution.md](../.specify/memory/constitution.md), [specs/001-support-agent/](../specs/001-support-agent/), [002-multilingual/](../specs/002-multilingual/), [003-guardrails/](../specs/003-guardrails/), [004-evaluation/](../specs/004-evaluation/) | — |
-| **Tests** | [tests/unit/](../tests/unit/), [tests/contract/](../tests/contract/), [tests/integration/](../tests/integration/), [tests/support/](../tests/support/) | 147 tests |
+| **Tests** | [tests/unit/](../tests/unit/), [tests/contract/](../tests/contract/), [tests/integration/](../tests/integration/), [tests/support/](../tests/support/) | 207 tests |
 
 Verification, all keyless:
 
 ```bash
-uv run pytest                              # 147 tests
+uv run pytest                              # 207 tests
 uv run ruff check . && uv run mypy src     # lint + types
 uv run zapp-ingest validate                # KB structural + coverage gate
 uv run zapp-eval                           # eval gate → report + exit code

@@ -48,7 +48,7 @@ flowchart TB
 
     subgraph VERIFY["VERIFICATION TIME — run by CI and by a reviewer"]
         direction TB
-        V1["uv run pytest — 147 tests, keyless"]
+        V1["uv run pytest — 207 tests, keyless"]
         V2["ruff + mypy"]
         V3["zapp-ingest validate — KB gate"]
         V4["zapp-eval<br/>deterministic core always runs;<br/>live LLM-judged tier when a key exists"]
@@ -142,7 +142,7 @@ sequenceDiagram
     A->>St: save the mutated Session
     A-->>C: TurnResult
     C-->>U: reply, in Spanish
-    Note over A,T: the Trace is NOT returned or logged — see gap 2
+    Note over A,T: a structured summary line is logged; the full Trace is not returned — see gap 2
 ```
 
 Three details in that sequence are load-bearing:
@@ -151,7 +151,8 @@ Three details in that sequence are load-bearing:
   leaves the stored session exactly as it was.
 - **`assemble` runs last and unconditionally.** Whatever happened upstream, the final step either
   validates a contract or substitutes one that cannot fail validation.
-- **The trace is complete and then discarded.** Step-by-step capture works; there is no emission.
+- **A per-turn summary is logged; the full trace is not exported.** Step-by-step capture works and a
+  structured line is emitted from `run_turn`; the complete span tree is not yet returned or exported.
 
 ---
 
@@ -204,7 +205,7 @@ flowchart LR
     TRC --> RPT
     RPT -->|"asserted byte-stable by the drift guard test"| DSET
 
-    TRC -.->|"NOT IMPLEMENTED — no log sink, no exporter"| LOGS[("structured logs")]
+    TRC -->|"one structured line per turn from run_turn; full-trace exporter not yet"| LOGS[("structured logs")]
 
     classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;
     classDef gap fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-dasharray: 5 4;
@@ -358,7 +359,7 @@ confined to exactly one file, verified by grep.
 
 ```mermaid
 flowchart TB
-    subgraph tests["tests/ — 147 tests"]
+    subgraph tests["tests/ — 207 tests"]
         TT["unit · contract · integration<br/>inject a mock LLMClient<br/>autouse fixture blanks both API keys"]
     end
 

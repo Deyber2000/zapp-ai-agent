@@ -72,7 +72,7 @@ Every command below runs with **no API key and no network**:
 
 ```bash
 uv sync
-uv run pytest                              # 147 tests — unit, contract, integration
+uv run pytest                              # 207 tests — unit, contract, integration
 uv run ruff check . && uv run mypy src     # lint + types
 uv run zapp-ingest validate                # knowledge-base structural + coverage gate
 uv run zapp-eval                           # evaluation gate → report + exit code

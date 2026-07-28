@@ -53,17 +53,16 @@ flowchart TB
     GUARD["drift guard test<br/>re-runs the suite and asserts the committed report still matches<br/>excludes latency and the whole live tier<br/>— the two things that cannot be reproducible"]
     RPT -.-> GUARD
 
-    NOCI["<b>GAP</b> — no workflow file exists<br/>the gate is a capability, not an enforcement"]
-    Z1 -.-> NOCI
+    CI["GitHub Actions — .github/workflows/ci.yml<br/>runs the full keyless gate on push and PR"]
+    Z1 -.-> CI
 
     classDef det fill:#dcfce7,stroke:#16a34a,color:#052e16;
     classDef llm fill:#dbeafe,stroke:#2563eb,color:#0c1d51;
     classDef safe fill:#fee2e2,stroke:#dc2626,color:#450a0a;
     classDef gap fill:#f1f5f9,stroke:#94a3b8,color:#0f172a,stroke-dasharray: 5 4;
-    class SCR,PIN,RUN,RJ,M,RPT,GUARD,SKIP,Z0 det;
+    class SCR,PIN,RUN,RJ,M,RPT,GUARD,SKIP,Z0,CI det;
     class REAL,LJ,DE llm;
     class Z1 safe;
-    class NOCI gap;
 ```
 
 **The tier boundary is drawn exactly where reproducibility ends.** Everything green is byte-stable on
@@ -161,17 +160,18 @@ carefully:
 Stating this is not hedging. A metric whose limits are documented can be trusted within them; one
 presented as more than it is cannot be trusted at all.
 
-## Gap: CI-ready, not CI-wired
+## CI is wired (previously a gap)
 
-`zapp-eval` and `zapp-ingest validate` both exit non-zero on failure and are genuinely drop-in for a
-pipeline. But **there is no workflow file in the repository** — no `.github/`, nothing. The gate is a
-capability, not an enforcement. Ten lines of YAML running `uv sync && uv run ruff check . && uv run
-mypy src && uv run pytest && uv run zapp-eval` would convert the claim into a fact, and every one of
-those commands already passes keyless.
+`zapp-eval` and `zapp-ingest validate` both exit non-zero on failure. A keyless GitHub Actions
+workflow ([.github/workflows/ci.yml](../.github/workflows/ci.yml)) now runs the full gate on push and
+PR: `uv sync --extra dev`, then `ruff check .`, `mypy src evals`, `pytest`, `zapp-ingest validate`,
+and `zapp-eval`. Every command runs keyless — tests blank any API key via an autouse fixture and
+ingestion/eval are served from committed caches — so the gate is now an enforcement, not just a
+capability.
 
 ## Testing around the eval
 
-147 tests ([tests/](../tests/)) — unit, contract, integration — all keyless. An autouse fixture blanks
+207 tests ([tests/](../tests/)) — unit, contract, integration — all keyless. An autouse fixture blanks
 both API keys and clears the settings cache so that **no test can make a live call even on a machine
 with a populated `.env`** ([tests/conftest.py:18-23](../tests/conftest.py#L18-L23)). The mock client
 supports fault injection via `ZAPP_FAULT` (`timeout`, `malformed`, `tool_error`) so the resilience
